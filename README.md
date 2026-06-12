@@ -1,110 +1,188 @@
-# TurboQuant: 4-bit Activation Quantization (NVFP4 + per-block QJL)
+# TurboQuant: NVFP4 4-bit Quantization for LLMs (W4A4 + KV4)
 
-Implementation of the activation-quantization half of
-[OmniStack_TurboQuant_Research.md](OmniStack_TurboQuant_Research.md). The KV-cache
-half (OmniStack) is already built and validated in the sibling repo
-[`../Omnistack_RS`](../Omnistack_RS); here we **reuse** its QJL primitive and
-build the novel activation codec on top.
+A portable, pure-PyTorch quantization codec + accuracy harness for **NVFP4**
+(E2M1 + MX4 per-16 fp8 microscaling). It started as the activation half of
+[OmniStack_TurboQuant_Research.md](OmniStack_TurboQuant_Research.md) and now
+covers the full **W4A4** path (4-bit weights *and* activations). The KV-cache
+half (OmniStack) is validated separately in [`../Omnistack_RS`](../Omnistack_RS);
+its QJL primitive is reused here.
 
 ## What this is (and isn't)
 
-A portable, pure-PyTorch codec + accuracy harness that runs on a Mac (CPU/MPS)
-for development and on a **single rented H100** for the real-model run. It
-validates the research's **accuracy** claim. It does **not** implement the
-B200/TRT-LLM throughput stack — the H100 is Hopper and has no FP4 tensor cores,
-so NVFP4 is a **numerical fake-quant simulation** (round to the E2M1 grid, matmul
-in fp16). Throughput, MLPerf, 70B, and CUDA kernels are out of scope (need
-Blackwell).
+Runs on a Mac (CPU/MPS) for development and on a **single rented H100** for the
+real-model runs. It validates the **accuracy** claim. NVFP4 is a **numerical
+fake-quant simulation** (round to the E2M1 grid, matmul in fp16) — the H100 is
+Hopper and has no FP4 tensor cores, so **throughput numbers are projected, not
+measured.** Real-kernel speed, B200, TRT-LLM, MLPerf, and 70B are out of scope
+(need Blackwell).
 
-## Key findings (the design deviates from the paper — on purpose)
+**Design constraint (the one rule):** every correction must be **Pareto-clean** —
+folded into weights offline or applied in a fused epilogue, never regressing
+latency, memory, or the pure-FP4 main GEMM path versus FP8. No technique is kept
+unless it improves an axis without degrading another.
 
-Two stages of the paper's pipeline were tested and found not to work as written:
+---
 
-1. **PolarQuant is redundant with MX4 microscaling — dropped.** NVFP4's per-16
-   block scale already normalizes each group; per-token L2 normalization is a
-   global constant the block scale absorbs exactly (`max|polar − raw| ≈ 1e-5`
-   with fp32 scales). With real fp8 scales it slightly *hurts*. So PolarQuant is
-   off by default (kept as an ablation flag).
+## Headline results (Llama-3.1-8B, full WikiText-2)
 
-2. **QJL must be applied per sub-block, not over the full hidden vector.** QJL's
-   MSE reduction is `qjl_dim·2/(π·block)`. OmniStack gets ~31.8% by applying it
-   per 128-dim head; on a full 4096-dim activation vector, `qjl_dim=64` corrects
-   only ~1%. We apply QJL per 128-element block (`qjl_dim=64`, ratio 0.5) →
-   ~22% activation-NMSE reduction, at 4.5 bits/element.
+Reference points: **FP16 = 5.918**, **FP8 (per-token E4M3, the production bar) = 5.948**.
 
-So the implemented codec is **NVFP4(MX4) + per-block QJL**, fully data-oblivious
-(no calibration, no codebook — see the Lloyd-Max note in the research doc).
+### A4 — FP4 activations, FP16 weights (the activation codec)
 
-3. **QuaRot-style Hadamard rotation is also harmful under MX4 — rejected.**
-   Rotation (`rotation.py`, `use_hadamard` flag, kept for ablation) helps
-   *coarse-scaled* quantizers (13× NMSE win at per-token scales — QuaRot's
-   regime) but NVFP4's per-16 block scales already contain outliers better than
-   rotation's Gaussian floor; under MX4 it raises NMSE 3× and gpt2 PPL 44.7→94.2.
-   Caveat: the research doc's §3.2 *cost* argument against rotation was wrong
-   (the rotation folds into weights offline for free, as QuaRot deploys); the
-   conclusion was right for a different reason — MX4 supersedes it. Pattern:
-   **outlier remedies designed for coarse-scaled quantization (PolarQuant,
-   rotation) are redundant-to-harmful under fine-grained microscaling.**
+| Mode | PPL | vs FP8 | gap to FP8 closed |
+|---|---|---|---|
+| raw NVFP4 | 6.263 | +0.315 | 0% |
+| + channel equalization + zero-point | 6.168 | +0.220 | 30% |
+| + W-aware SVD side-channel | 6.065 | +0.117 | 63% |
+| **+ QJL residual (`nvfp4_eqzp_svd_qjl`)** | **6.050** | **+0.102** | **68%** |
 
-### End-to-end perplexity so far (local, WikiText-2)
+**A4 reaches near-FP8 parity (+0.10 PPL) — the hard half of the problem.**
 
-| Model | baseline | fp8 (target) | nvfp4_raw | turboquant | QJL recovers |
-|---|---|---|---|---|---|
-| gpt2 (Conv1D, 3k tok) | 38.15 | — | 44.68 | 45.41 | **−11%** (hurt) |
-| TinyLlama-1.1B (Llama nn.Linear, 6k tok) | 10.196 | 10.260 | 10.792 | 10.573 | **+37%** |
+### W4A4 — FP4 weights *and* FP4 activations
 
-Two honest takeaways:
-1. **Architecture matters.** On gpt2 (Conv1D) the correction slightly hurt; on a
-   real Llama-arch model (the H100 8B target's architecture) per-block QJL clearly
-   helps — it recovers ~37% of the raw-NVFP4 gap.
-2. **But it does NOT yet reach the FP8 production target.** FP8 is near-lossless
-   (+0.064 PPL); turboquant is +0.377, still +0.313 short of FP8 — above the plan's
-   ≤0.1 PPL bar on this 1.1B model. So on small models the method improves raw
-   NVFP4 but is not yet FP8-parity.
+| Weight method (on top of the A4 stack) | PPL | vs FP8 | weight cliff recovered |
+|---|---|---|---|
+| naive nearest rounding | 6.629 | +0.681 | 0% |
+| GPTQ (Hessian error feedback) | 6.552 | +0.604 | 13% |
+| AWQ + GPTQ | 6.581 | +0.633 | *worse* |
+| GPTQ + additive low-rank (in/16) | 6.376 | +0.428 | 44% |
+| **GPTQ + additive low-rank (in/8, fp8 factors)** | **6.294** | **+0.346** | **58%** |
 
-**Open question for the H100 run:** does the gap to FP8 close on a real 8B model
-(larger models, true fp16, where NVFP4 activation error bites harder and the
-correction may matter more)? A null result is still a legitimate, publishable
-outcome ("why FP4 activation quantization remains hard"). NVFP4/FP8 here are
-fake-quant simulations and gpt2/TinyLlama ran in fp32 — not the final word.
+**Best deployable W4A4 = 6.294**, at **0.75 byte/elem — under FP8's 1 byte** on
+every axis (FP4 weight 0.5B + fp8 low-rank factors 0.25B). fp8 factors are
+lossless vs fp16 (both 6.294).
+
+### GSM8K (8-shot CoT, 30-question probe)
+
+| Mode | accuracy |
+|---|---|
+| FP16 | 50.0% (15/30) |
+| A4 (`nvfp4_eqzp_svd_qjl`) | 46.7% (14/30) |
+
+A 1-question difference — statistically noise at n=30. Rules out catastrophic
+reasoning collapse; **does not** establish parity. Full GSM8K (1319 q) is pending.
+
+---
+
+## Key findings (the mechanistic story)
+
+The central, consistent result across the whole project:
+
+> **Under NVFP4's per-16 microscaling, coarse-scale "scaling / redistribution"
+> methods are redundant-to-harmful; only *additive* side-channels help.**
+
+Demonstrated repeatedly:
+
+1. **PolarQuant** (per-token L2 norm) — redundant; the per-16 block scale absorbs
+   it (`max|polar − raw| ≈ 1e-5` fp32; slightly *hurts* with fp8 scales).
+2. **QuaRot global Hadamard rotation** — *harmful* under MX4 (NMSE ×3, gpt2 PPL
+   44.7→94.2). The block scale already beats rotation's Gaussian floor.
+3. **GPTQ** (Hessian error feedback on weights) — recovers only **13%** of the
+   weight cliff. The per-16 microscaling already does most of what GPTQ does at
+   coarse scale.
+4. **AWQ** (salient-channel scaling) — *worse* than GPTQ (6.581 vs 6.552).
+5. **Per-layer rank allocation** (water-filling) — *worse* than uniform (6.363 vs
+   6.294): per-layer reconstruction error ≠ end-to-end importance, and starving
+   layers to rank 0 costs more than it saves.
+
+**What breaks the wall: additive low-rank correction** (LQER-style). Instead of
+reshuffling error, it *adds information back* — an activation-Hessian-weighted
+rank-r approximation of the residual `W − Q(W)`, riding a fused rank-r side
+matmul. This is the weight-analog of the activation SVD side-channel that also
+worked, and it is **immune to the microscaling redundancy** because it is
+additive, not multiplicative. It recovers 44→58% of the weight cliff with rank.
+
+QJL must also be applied **per sub-block** (per-128, `qjl_dim=64`, ~22% NMSE
+reduction), not over the full hidden vector (~1%, useless).
+
+---
+
+## Negative results (tested, ruled out — these are findings)
+
+| Tried | Outcome |
+|---|---|
+| PolarQuant, global rotation | redundant / harmful under microscaling |
+| GPTQ, AWQ (weight scaling) | redundant — microscaling absorbs them |
+| naive zero-point | hurts E2M1 (dense-near-zero grid); best-of-{0, mid} instead |
+| W-aware rounding (no permutation) | 18.5% synthetic → ~3% real (no within-block channel correlation) |
+| fp4 (E2M1) low-rank factors | worse than fp8 at equal bytes (E2M1 too coarse for factors) |
+| joint W+A (quantized-activation Hessian) | no signal — interaction negligible (Q(x)≈x) |
+| per-layer rank allocation | worse than uniform |
+
+---
+
+## Honest scope & caveats
+
+- **Fake-quant simulation.** Accuracy is real; throughput (~1.5–1.8× FP8
+  projected) is *not measured* — needs B200.
+- **Light calibration, not calibration-free.** Uses a few wikitext-train windows
+  for equalization scales (A4) and GPTQ Hessians (W4). Frame as *light-calibration
+  PTQ*.
+- **Single model / dataset for the strong numbers.** Llama-3.1-8B, WikiText-2 PPL.
+  Cross-model breadth and the full downstream suite are pending.
+- **W4A4 is not FP8-parity** (best +0.35). Within pure / light-calibration /
+  hardware-native / Pareto-clean 4-bit, this is near the practical floor; reaching
+  parity requires breaking a premise (learned rotations, fine-tuning, or
+  lattice/trellis coding — each spends generality, purity, or the FP4 grid).
+- **W4A4KV4 composition** (all three together — the "4-bit everything" headline)
+  is **not yet run**.
+
+---
 
 ## Layout
 
 ```
 turboquant/
-  nvfp4.py        NVFP4 E2M1 grid + MX4 block fake-quant
+  nvfp4.py        E2M1 grid + MX4 block fake-quant; optclip; zero-point; W-aware
+  gptq.py         GPTQ + AWQ + additive low-rank weight correction (NVFP4)
+  act_codec.py    TurboQuantActQuantizer: NVFP4 + SVD side-channel + per-block QJL
   polarquant.py   magnitude/direction split (ablation only)
-  act_codec.py    TurboQuantActQuantizer: (PolarQuant) + NVFP4 + per-block QJL
-  config.py       TurboQuantConfig (defaults = corrected design)
-  _omnistack.py   imports RademacherQJL from ../Omnistack_RS (reuse, not reimpl)
+  rotation.py     Hadamard rotation (ablation only)
+  config.py       TurboQuantConfig
+  _omnistack.py   imports RademacherQJL from ../Omnistack_RS (reuse)
   tests/          pytest unit tests (CPU)
   validation/
-    error_analysis.py   ablation + QJL sweep + outlier stress -> results/
-    hf_perplexity.py    Experiment B: WikiText-2 PPL, 3 modes
-  scripts/run_gpu_session.sh   one-shot H100 run
+    hf_perplexity.py   WikiText-2 PPL; A4 + W4A4 modes; weight-quant + Hessian
+    gsm8k_eval.py      GSM8K 8-shot CoT, stop-at-####, per-mode checkpointing
+    error_analysis.py  ablation + QJL sweep + outlier stress
+  scripts/        run_gpu_session.sh, run_gsm8k_session.sh
 ```
 
 ## Run
 
 ```bash
-pip install -r requirements.txt
-# OmniStack-RS must be a sibling repo (or set OMNISTACK_PATH).
+pip install -r requirements.txt   # OmniStack-RS sibling repo, or set OMNISTACK_PATH
 
-# 1. Unit tests (Mac CPU, free)
+# Unit tests (Mac CPU, free) — 33 tests
 pytest turboquant/tests -q
 
-# 2. Numerical error analysis (Mac CPU, free) -> results/
-python -m turboquant.validation.error_analysis
+# A4 perplexity (one H100)
+python -m turboquant.validation.hf_perplexity --model unsloth/Meta-Llama-3.1-8B \
+  --modes fp16 fp8 nvfp4_raw nvfp4_eqzp_svd_qjl
 
-# 3. End-to-end smoke (Mac MPS/CPU, free)
-python -m turboquant.validation.hf_perplexity --model gpt2 --limit 3000
+# Best W4A4 (FP4 weights + activations, GPTQ + additive low-rank, fp8 factors)
+python -m turboquant.validation.hf_perplexity --model unsloth/Meta-Llama-3.1-8B \
+  --modes nvfp4_eqzp_svd_qjl --w4-gptq --w4-lowrank --w4-rank-div 8 --w4-lowrank-fp8
 
-# 4. Real run — ONE H100 (the only step that costs money)
-bash turboquant/scripts/run_gpu_session.sh meta-llama/Llama-3.1-8B
+# GSM8K
+python -m turboquant.validation.gsm8k_eval --model unsloth/Meta-Llama-3.1-8B --limit 150
 ```
+
+Key flags: `--w4-gptq` (Hessian weight quant), `--awq`, `--w4-lowrank`
+(additive correction), `--w4-rank-div N` (rank = in/N), `--w4-lowrank-fp8`
+(Pareto-clean factor storage), `--w4-rank-alloc` (water-fill, *worse* — kept for
+the ablation). See [RESEARCH_ROADMAP.md](RESEARCH_ROADMAP.md) for next steps.
+
+## What's needed for publication
+
+Breadth (more models + full lm-eval task suite), head-to-head baselines (QuaRot /
+SpinQuant / Atom / NVFP4-specific), the W4A4KV4 composition run, and real B200
+throughput — none of which require beating 6.294. The contribution is the
+**mechanism** (microscaling redundancy + additive correction), not the absolute
+number. See [RESEARCH_ROADMAP.md](RESEARCH_ROADMAP.md).
 
 ## Out of scope (need Blackwell + NVIDIA stack)
 
-TRT-LLM / ModelOpt / CUDA `IPluginV3` kernels, in-register fusion, real FP4
-tensor-core speed, B200 throughput / concurrency, MLPerf LoadGen, Nsight, 70B.
-Re-validating the OmniStack KV codec (already done in `../Omnistack_RS`).
+TRT-LLM / ModelOpt / CUDA kernels, in-register fusion, real FP4 tensor-core speed,
+B200 throughput / concurrency, MLPerf, 70B. Re-validating the OmniStack KV codec
+(done in `../Omnistack_RS`).
