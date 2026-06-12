@@ -1,0 +1,25 @@
+{
+  "model": "unsloth/Meta-Llama-3.1-8B",
+  "config": {
+    "model": "unsloth/Meta-Llama-3.1-8B",
+    "max_len": 1024,
+    "stride": 512,
+    "limit": 0,
+    "qjl_block": 128,
+    "qjl_dim": 64,
+    "w4": false,
+    "w4_gptq": true,
+    "awq": false,
+    "w4_lowrank": true,
+    "w4_rank_div": 8,
+    "modes": [
+      "nvfp4_eqzp_svd_qjl"
+    ]
+  },
+  "results": {
+    "nvfp4_eqzp_svd_qjl": {
+      "perplexity": 6.294095516204834,
+      "seconds": 375.2
+    }
+  }
+}

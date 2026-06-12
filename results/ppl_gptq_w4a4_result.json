@@ -1,0 +1,32 @@
+{
+  "model": "unsloth/Meta-Llama-3.1-8B",
+  "config": {
+    "model": "unsloth/Meta-Llama-3.1-8B",
+    "max_len": 1024,
+    "stride": 512,
+    "limit": 0,
+    "qjl_block": 128,
+    "qjl_dim": 64,
+    "w4": false,
+    "w4_gptq": true,
+    "modes": [
+      "fp16",
+      "fp8",
+      "nvfp4_eqzp_svd_qjl"
+    ]
+  },
+  "results": {
+    "fp16": {
+      "perplexity": 5.918487548828125,
+      "seconds": 21.9
+    },
+    "fp8": {
+      "perplexity": 5.948249340057373,
+      "seconds": 62.1
+    },
+    "nvfp4_eqzp_svd_qjl": {
+      "perplexity": 6.551887512207031,
+      "seconds": 374.7
+    }
+  }
+}

@@ -126,6 +126,7 @@ def nvfp4_quantize_zp(
     block: int = 16,
     quantize_scale: bool = True,
     optclip: bool = False,
+    imp: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """NVFP4 with a per-block *optional* zero-point (best-of-N fake-quant).
 
@@ -139,6 +140,14 @@ def nvfp4_quantize_zp(
     cost: the matmul cross-term z · (block row-sums of W) is a precomputed
     (d/block, m) matrix times a tiny per-token vector — fused epilogue, main
     path stays pure E2M1 + fp8 scale.
+
+    ``imp`` (optional, per-channel, shape broadcastable to the last dim) reweights
+    the per-block candidate selection by *output-domain* importance instead of
+    plain element MSE: each candidate's error is ``Σ imp_i·(q_i-x_i)²`` rather
+    than ``Σ (q_i-x_i)²``. With imp_i = diag(W Wᵀ)_i (how much channel i drives
+    the layer output, in equalized space) this is the diagonal of the true
+    output error ‖(q-x)W‖² — a strictly better proxy for PPL than input MSE, at
+    zero deploy cost (imp is precomputed offline from W). Default None = uniform.
     """
     *lead, n = x.shape
     if n % block != 0:
@@ -163,7 +172,10 @@ def nvfp4_quantize_zp(
     if quantize_scale:                                  # (..., nb, 2, G, 1)
         scale = _quantize_scale_fp8(scale)
     q = _round_to_grid(centered / scale) * scale + z_b  # (..., nb, 2, G, block)
-    e = ((xb[..., None, None, :] - q) ** 2).sum(dim=-1)  # (..., nb, 2, G)
+    sq = (xb[..., None, None, :] - q) ** 2               # (..., nb, 2, G, block)
+    if imp is not None:
+        sq = sq * imp.reshape(n // block, 1, 1, block)   # output-domain weighting
+    e = sq.sum(dim=-1)                                    # (..., nb, 2, G)
 
     c = 2 * gammas.numel()
     q = q.reshape(*xb.shape[:-1], c, block)             # (..., nb, C, block)

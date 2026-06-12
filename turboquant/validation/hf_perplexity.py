@@ -50,6 +50,135 @@ def fp8_quantize(x: torch.Tensor) -> torch.Tensor:
 
 
 @torch.no_grad()
+def collect_weight_hessians(model, calib_ids, max_len: int, device, n_seq: int = 64) -> dict:
+    """Per-linear input Hessian H = E[xᵀx] over calibration windows (for GPTQ).
+
+    Accumulated on GPU via forward-pre-hooks; one pass over a few windows of
+    wikitext train. Offline — never runs at deploy time."""
+    print("  collecting weight Hessians (offline)...", end=" ", flush=True)
+    t0 = time.time()
+    hess: dict = {}
+    count: dict = {}
+    handles = []
+    for i, m in enumerate(mod for mod in model.modules() if _is_linear(mod)):
+        def make(idx):
+            def h(module, args):
+                x = args[0].detach().float().reshape(-1, args[0].shape[-1])
+                g = x.t() @ x
+                hess[idx] = g if idx not in hess else hess[idx] + g
+                count[idx] = count.get(idx, 0) + x.shape[0]
+            return h
+        handles.append(m.register_forward_pre_hook(make(i)))
+    n = 0
+    for begin in range(0, calib_ids.size(1), max_len):
+        if n >= n_seq:
+            break
+        model(calib_ids[:, begin:begin + max_len].to(device))
+        n += 1
+    for h in handles:
+        h.remove()
+    for i in hess:
+        hess[i] /= max(count[i], 1)
+    print(f"done ({len(hess)} layers, {n} windows, {time.time() - t0:.1f}s)", flush=True)
+    return hess
+
+
+@torch.no_grad()
+def quantize_weights_gptq(model, hessians: dict, block: int = 16, awq: bool = False,
+                          lowrank: bool = False, rank_div: int = 16,
+                          fp8_factors: bool = False, fp4_factors: bool = False) -> int:
+    """GPTQ-quantize every linear weight to NVFP4 using its activation Hessian.
+
+    ``awq`` adds AWQ-style salient-channel protection; ``lowrank`` adds an
+    additive low-rank residual correction (LQER-style, rank = in/``rank_div``)."""
+    from turboquant.gptq import (gptq_quantize_weight, awq_gptq_quantize_weight,
+                                 lowrank_corrected_weight)
+    if lowrank:
+        def quant(W, H, block):
+            return lowrank_corrected_weight(W, H, block=block, rank_div=rank_div,
+                                            fp8_factors=fp8_factors, fp4_factors=fp4_factors)
+        ftag = ',fp4' if fp4_factors else (',fp8' if fp8_factors else '')
+        tag = f"GPTQ+lowrank(in/{rank_div}{ftag})"
+    elif awq:
+        quant, tag = awq_gptq_quantize_weight, "AWQ+GPTQ"
+    else:
+        quant, tag = gptq_quantize_weight, "GPTQ"
+    print(f"  {tag}-quantizing weights to NVFP4 (W4)...", end=" ", flush=True)
+    t0 = time.time()
+    n = 0
+    for i, m in enumerate(mod for mod in model.modules() if _is_linear(mod)):
+        W = m.weight.data
+        if W.shape[-1] % block != 0 or i not in hessians:
+            continue
+        m.weight.data = quant(
+            W.float(), hessians[i].to(W.device), block=block).to(W.dtype)
+        n += 1
+    print(f"done ({n} layers, {time.time() - t0:.1f}s)", flush=True)
+    return n
+
+
+@torch.no_grad()
+def quantize_weights_gptq_alloc(model, hessians: dict, block: int = 16, rank_div: int = 8,
+                                max_rank_div: int = 2, fp8_factors: bool = True) -> int:
+    """GPTQ + low-rank correction with per-layer rank ALLOCATION (water-filling).
+
+    Same total side-channel budget as a uniform in/``rank_div`` allocation, but
+    distributed across layers by marginal singular-value energy per byte — more
+    rank where weight quantization actually hurts the output, ~none where it
+    doesn't. Pure Pareto move: identical total cost, better accuracy."""
+    from turboquant.gptq import gptq_lowrank_factors, apply_lowrank
+    print(f"  GPTQ+lowrank ALLOC (budget in/{rank_div}, fp8={fp8_factors})...",
+          end=" ", flush=True)
+    t0 = time.time()
+    layers = [(i, m) for i, m in enumerate(mod for mod in model.modules() if _is_linear(mod))
+              if m.weight.shape[-1] % block == 0 and i in hessians]
+
+    # Phase A: GPTQ + spectrum per layer (factors stashed on CPU to bound GPU mem)
+    parts, budget = {}, 0
+    for i, m in layers:
+        out_d, in_d = m.weight.shape
+        maxr = (in_d // max_rank_div) // block * block
+        W = m.weight.data.float()
+        Wq, Lfac, Rfac, S = gptq_lowrank_factors(W, hessians[i].to(W.device), block, maxr)
+        parts[i] = (Wq.cpu(), Lfac.cpu(), Rfac.cpu(), S.cpu(), m, out_d, in_d)
+        budget += (in_d // rank_div) * (out_d + in_d)        # uniform-equivalent bytes
+
+    # Water-fill: allocate rank in `block` chunks to max marginal energy / byte
+    import heapq
+    alloc = {i: 0 for i, _ in layers}
+    heap = []
+    for i, (_, _, _, S, _, out_d, in_d) in parts.items():
+        cost = block * (out_d + in_d)
+        nchunks = S.numel() // block
+        if nchunks:
+            gain = (S[:block] ** 2).sum().item()
+            heapq.heappush(heap, (-gain / cost, i, 1))
+    spent = 0
+    while heap and spent < budget:
+        neg, i, c = heapq.heappop(heap)
+        _, _, _, S, _, out_d, in_d = parts[i]
+        cost = block * (out_d + in_d)
+        if spent + cost > budget:
+            break
+        alloc[i] = c * block
+        spent += cost
+        if (c + 1) * block <= S.numel():
+            gain = (S[c * block:(c + 1) * block] ** 2).sum().item()
+            heapq.heappush(heap, (-gain / cost, i, c + 1))
+
+    # Phase B: apply allocated rank per layer
+    for i, (Wq, Lfac, Rfac, S, m, out_d, in_d) in parts.items():
+        dev = m.weight.device
+        m.weight.data = apply_lowrank(Wq.to(dev), Lfac.to(dev), Rfac.to(dev),
+                                      alloc[i], block=block,
+                                      fp8_factors=fp8_factors).to(m.weight.dtype)
+    ranks = [alloc[i] for i, _ in layers]
+    print(f"done ({len(layers)} layers, ranks {min(ranks)}-{max(ranks)}, "
+          f"{time.time() - t0:.1f}s)", flush=True)
+    return len(layers)
+
+
+@torch.no_grad()
 def quantize_weights_nvfp4(model, block: int = 16, row_chunk: int = 512) -> int:
     """Fake-quantize every linear weight to NVFP4 (E2M1 + per-16 fp8 block
     scales), in place — making the GEMM W4A4: FP4 weight x FP4 activation,
@@ -117,7 +246,7 @@ def _make_hook(mode: str, layer_idx: int, codec: TurboQuantActQuantizer, mx_bloc
         elif mode.startswith("nvfp4_eqzp_svd"):  # eq fold + zp x optclip + SVD (+ QJL)
             s = cache["eq"]
             xe = x.float() / s
-            base = nvfp4_quantize_zp(xe, block=mx_block, optclip=True)
+            base = nvfp4_quantize_zp(xe, block=mx_block, optclip=True, imp=cache.get("imp"))
             coeff = (xe - base) @ cache["basis"]
             cs = coeff.abs().amax(dim=-1, keepdim=True).clamp_min(1e-12) / 448.0
             coeff = round_e4m3(coeff / cs) * cs
@@ -147,7 +276,7 @@ def _war_comp(module, x_dim: int, block: int) -> torch.Tensor:
 
 
 def _precompute_aux(model, mx_block: int, device, need_basis: bool, need_comp: bool,
-                    eq_scales: dict | None = None) -> dict:
+                    eq_scales: dict | None = None, need_imp: bool = False) -> dict:
     """Precompute per-layer side data (SVD bases / feedback matrices) upfront."""
     print("  precomputing per-layer aux (offline)...", end=" ", flush=True)
     t0 = time.time()
@@ -163,6 +292,14 @@ def _precompute_aux(model, mx_block: int, device, need_basis: bool, need_comp: b
             entry["basis"] = _svd_basis(m, x_dim, k, row_scale).to(device)
         if need_comp:
             entry["comp"] = _war_comp(m, x_dim, mx_block).to(device)
+        if need_imp and eq_scales is not None and i in eq_scales:
+            # output-domain importance per input channel (equalized space):
+            # imp_i = s_i^2 * ||W[:,i]||^2 = diag(W_eq W_eqᵀ)_i
+            W = m.weight.detach().float()
+            colnorm2 = ((W ** 2).sum(dim=0) if type(m).__name__ == "Linear"
+                        else (W ** 2).sum(dim=1))
+            s = eq_scales[i].to(colnorm2)
+            entry["imp"] = ((s ** 2) * colnorm2).to(device)
         aux[i] = entry
     print(f"done ({len(aux)} layers, {time.time() - t0:.1f}s)", flush=True)
     return aux
@@ -234,20 +371,21 @@ def install_hooks(model, mode: str, cfg: TurboQuantConfig, eq_scales: dict | Non
                                qjl_dim=cfg.qjl_dim, use_optclip=True)
     elif "war" in mode:  # nvfp4_war (zero side bits) / turboquant_war_svd (+SVD)
         cfg = TurboQuantConfig(mx_block=cfg.mx_block, qjl_dim=0)
-    elif mode == "nvfp4_eqzp_svd":  # no QJL on the composed mode by default
-        cfg = TurboQuantConfig(mx_block=cfg.mx_block, qjl_dim=0)
-    elif mode == "nvfp4_eqzp_svd_qjl":  # max-accuracy stack
-        cfg = TurboQuantConfig(mx_block=cfg.mx_block, qjl_block=cfg.qjl_block,
-                               qjl_dim=cfg.qjl_dim)
+    elif mode.startswith("nvfp4_eqzp_svd"):  # composed mode; "_qjl" enables QJL,
+        cfg = TurboQuantConfig(             # "_oda" enables output-domain scale select
+            mx_block=cfg.mx_block, qjl_block=cfg.qjl_block,
+            qjl_dim=cfg.qjl_dim if "qjl" in mode else 0)
     codec = TurboQuantActQuantizer(cfg)
 
     need_basis = "svd" in mode
     need_comp = "war" in mode
+    need_imp = "oda" in mode
     aux = {}
-    if need_basis or need_comp:
+    if need_basis or need_comp or need_imp:
         device = next(model.parameters()).device
         aux = _precompute_aux(model, cfg.mx_block, device, need_basis, need_comp,
-                              eq_scales if mode.startswith("nvfp4_eq") else None)
+                              eq_scales if mode.startswith("nvfp4_eq") else None,
+                              need_imp=need_imp)
     if mode.startswith("nvfp4_eq"):
         if not eq_scales:
             raise ValueError(f"mode {mode} needs calibrated eq_scales")
@@ -295,6 +433,20 @@ def main():
     ap.add_argument("--qjl-dim", type=int, default=64)
     ap.add_argument("--w4", action="store_true",
                     help="also quantize linear WEIGHTS to NVFP4 (true W4A4) for quantized modes")
+    ap.add_argument("--w4-gptq", action="store_true",
+                    help="use GPTQ (Hessian-aware) weight quant instead of naive rounding (implies --w4)")
+    ap.add_argument("--awq", action="store_true",
+                    help="add AWQ-style salient-channel protection to GPTQ weight quant")
+    ap.add_argument("--w4-lowrank", action="store_true",
+                    help="add additive low-rank residual correction to GPTQ weight quant (LQER-style)")
+    ap.add_argument("--w4-rank-div", type=int, default=16,
+                    help="low-rank correction rank = in/this (smaller = higher rank/more capacity)")
+    ap.add_argument("--w4-lowrank-fp8", action="store_true",
+                    help="store low-rank factors in fp8 (Pareto-honest: keeps the memory axis bounded)")
+    ap.add_argument("--w4-lowrank-fp4", action="store_true",
+                    help="store low-rank factors in fp4/NVFP4 (keeps '4-bit everywhere'; higher rank at same bytes)")
+    ap.add_argument("--w4-rank-alloc", action="store_true",
+                    help="water-fill the low-rank budget across layers by sensitivity (same total cost)")
     ap.add_argument("--modes", nargs="+", default=["fp16", "fp8", "nvfp4_raw", "turboquant"])
     args = ap.parse_args()
 
@@ -323,6 +475,9 @@ def main():
         ids = ids[:, : args.limit]
     print(f"test tokens: {ids.size(1)}")
 
+    use_w4 = args.w4 or args.w4_gptq
+    has_quant_mode = any(m not in ("fp16", "fp8") for m in args.modes)
+
     eq_scales = None
     if any(m.startswith("nvfp4_eq") for m in args.modes):
         train = load_dataset("Salesforce/wikitext", "wikitext-2-raw-v1", split="train")
@@ -332,12 +487,34 @@ def main():
         eq_scales = calibrate_eq_scales(model, calib_ids, args.max_len, device)
         del model
 
+    hessians = None
+    if args.w4_gptq and has_quant_mode:
+        train = load_dataset("Salesforce/wikitext", "wikitext-2-raw-v1", split="train")
+        h_calib = tok("\n\n".join(train["text"][:4000]),
+                      return_tensors="pt").input_ids[:, : 32 * args.max_len]
+        model = load_model().to(device).eval()
+        hessians = collect_weight_hessians(model, h_calib, args.max_len, device, n_seq=32)
+        del model
+        if device == "cuda":
+            torch.cuda.empty_cache()
+
     cfg = TurboQuantConfig(qjl_block=args.qjl_block, qjl_dim=args.qjl_dim, use_polarquant=False)
     results = {}
     for mode in args.modes:
         model = load_model().to(device).eval()
-        if args.w4 and mode not in ("fp16", "fp8"):  # keep fp16/fp8 as clean references
-            quantize_weights_nvfp4(model, cfg.mx_block)
+        if use_w4 and mode not in ("fp16", "fp8"):  # keep fp16/fp8 as clean references
+            if args.w4_gptq and args.w4_rank_alloc:
+                quantize_weights_gptq_alloc(model, hessians, cfg.mx_block,
+                                            rank_div=args.w4_rank_div,
+                                            fp8_factors=args.w4_lowrank_fp8)
+            elif args.w4_gptq:
+                quantize_weights_gptq(model, hessians, cfg.mx_block,
+                                      awq=args.awq, lowrank=args.w4_lowrank,
+                                      rank_div=args.w4_rank_div,
+                                      fp8_factors=args.w4_lowrank_fp8,
+                                      fp4_factors=args.w4_lowrank_fp4)
+            else:
+                quantize_weights_nvfp4(model, cfg.mx_block)
         handles = install_hooks(model, mode, cfg, eq_scales)
         t0 = time.time()
         ppl = perplexity(model, ids, args.max_len, args.stride, device)

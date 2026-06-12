@@ -84,6 +84,73 @@ def test_joint_optclip_zp_dominates_both_single_searches():
     assert e_joint <= err(nvfp4_quantize(x, optclip=True)) + 1e-6
 
 
+def test_gptq_weight_beats_naive_on_correlated_hessian():
+    # GPTQ error feedback through the activation Hessian must lower the
+    # output-domain weight error ‖(W-Wq)Xᵀ‖² vs naive nearest NVFP4 rounding,
+    # at the same E2M1+fp8 format and zero side bits.
+    from turboquant.gptq import gptq_quantize_weight
+    from turboquant.nvfp4 import nvfp4_quantize
+    torch.manual_seed(0)
+    out_d, in_d, T = 128, 256, 1024
+    X = torch.randn(T, 48) @ torch.randn(48, in_d)   # correlated activations
+    W = torch.randn(out_d, in_d)
+    H = X.t() @ X / T
+
+    def oerr(Wq):
+        return (((W - Wq) @ X.t()) ** 2).sum()
+
+    e_naive = oerr(nvfp4_quantize(W, block=16))
+    e_gptq = oerr(gptq_quantize_weight(W, H, block=16))
+    assert e_gptq < e_naive
+
+
+def test_gptq_output_is_nvfp4_grid():
+    # GPTQ output must still be (E2M1 value) x (fp8 block scale), per row/block.
+    from turboquant.gptq import gptq_quantize_weight
+    from turboquant.nvfp4 import NVFP4_GRID
+    torch.manual_seed(2)
+    W = torch.randn(8, 64)
+    X = torch.randn(512, 64)
+    H = X.t() @ X / 512                       # realistic positive-definite Hessian
+    Wq = gptq_quantize_weight(W, H, block=16)
+    grid = NVFP4_GRID[NVFP4_GRID > 0]
+    for blk in Wq.reshape(-1, 16):
+        nz = blk[blk != 0].abs()
+        if nz.numel() == 0:
+            continue
+        ratios = nz / nz.min()
+        valid = (grid.unsqueeze(0) / grid.unsqueeze(1)).flatten()
+        assert all(torch.isclose(r, valid, rtol=1e-4).any() for r in ratios)
+
+
+def test_output_domain_importance_lowers_output_error():
+    # Weighting the per-block scale search by output-domain importance
+    # (imp_i = ||W[i,:]||²) must lower ‖(Q(x)-x)W‖² vs plain element-MSE, since
+    # it picks scales that protect the channels that actually drive the output.
+    from turboquant.nvfp4 import nvfp4_quantize_zp
+    torch.manual_seed(0)
+    d, m, T = 256, 512, 256
+    W = torch.randn(d, m)
+    W[:8] *= 9.0   # a few input channels drive the output far more than the rest
+    x = torch.randn(T, d) * 2
+    imp = (W ** 2).sum(dim=1)  # diag(W Wᵀ): per-input-channel output importance
+
+    def oerr(xh):
+        return (((x - xh) @ W) ** 2).sum()
+
+    assert oerr(nvfp4_quantize_zp(x, optclip=True, imp=imp)) < \
+        oerr(nvfp4_quantize_zp(x, optclip=True))
+
+
+def test_importance_none_matches_original():
+    # imp=None must be byte-identical to the original uniform selection.
+    from turboquant.nvfp4 import nvfp4_quantize_zp
+    torch.manual_seed(1)
+    x = torch.randn(64, 512) * 2
+    assert torch.equal(nvfp4_quantize_zp(x, optclip=True),
+                       nvfp4_quantize_zp(x, optclip=True, imp=None))
+
+
 def test_qjl_correct_estimates_residual():
     torch.manual_seed(0)
     codec = TurboQuantActQuantizer(TurboQuantConfig(qjl_block=128, qjl_dim=64))
