@@ -1,0 +1,20 @@
+{
+  "model": "gpt2",
+  "config": {
+    "model": "gpt2",
+    "max_len": 512,
+    "stride": 512,
+    "limit": 3000,
+    "qjl_block": 128,
+    "qjl_dim": 64,
+    "modes": [
+      "turboquant_svd"
+    ]
+  },
+  "results": {
+    "turboquant_svd": {
+      "perplexity": 43.35274887084961,
+      "seconds": 147.7
+    }
+  }
+}

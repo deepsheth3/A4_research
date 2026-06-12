@@ -1,0 +1,165 @@
+{
+  "ablation": {
+    "nvfp4_only": 0.004894347861409187,
+    "+polarquant": 0.007127098739147186,
+    "+qjl_full_vector(k=64)": 0.004845908842980862,
+    "+qjl_per_block(128,k=64)": 0.0038354983553290367
+  },
+  "qjl_sweep": [
+    {
+      "qjl_block": 16,
+      "qjl_dim": 8,
+      "ratio": 0.5,
+      "theory_reduction": 0.3183098861837907,
+      "bits_per_elem": 4.5,
+      "nmse": 0.0038341819308698177
+    },
+    {
+      "qjl_block": 16,
+      "qjl_dim": 16,
+      "ratio": 1.0,
+      "theory_reduction": 0.6366197723675814,
+      "bits_per_elem": 5.0,
+      "nmse": 0.0040396759286522865
+    },
+    {
+      "qjl_block": 64,
+      "qjl_dim": 8,
+      "ratio": 0.125,
+      "theory_reduction": 0.07957747154594767,
+      "bits_per_elem": 4.125,
+      "nmse": 0.004512875806540251
+    },
+    {
+      "qjl_block": 64,
+      "qjl_dim": 16,
+      "ratio": 0.25,
+      "theory_reduction": 0.15915494309189535,
+      "bits_per_elem": 4.25,
+      "nmse": 0.004216514062136412
+    },
+    {
+      "qjl_block": 64,
+      "qjl_dim": 32,
+      "ratio": 0.5,
+      "theory_reduction": 0.3183098861837907,
+      "bits_per_elem": 4.5,
+      "nmse": 0.003775595920160413
+    },
+    {
+      "qjl_block": 64,
+      "qjl_dim": 64,
+      "ratio": 1.0,
+      "theory_reduction": 0.6366197723675814,
+      "bits_per_elem": 5.0,
+      "nmse": 0.003935724962502718
+    },
+    {
+      "qjl_block": 128,
+      "qjl_dim": 8,
+      "ratio": 0.0625,
+      "theory_reduction": 0.039788735772973836,
+      "bits_per_elem": 4.0625,
+      "nmse": 0.0046970434486866
+    },
+    {
+      "qjl_block": 128,
+      "qjl_dim": 16,
+      "ratio": 0.125,
+      "theory_reduction": 0.07957747154594767,
+      "bits_per_elem": 4.125,
+      "nmse": 0.004516324959695339
+    },
+    {
+      "qjl_block": 128,
+      "qjl_dim": 32,
+      "ratio": 0.25,
+      "theory_reduction": 0.15915494309189535,
+      "bits_per_elem": 4.25,
+      "nmse": 0.004241759888827801
+    },
+    {
+      "qjl_block": 128,
+      "qjl_dim": 64,
+      "ratio": 0.5,
+      "theory_reduction": 0.3183098861837907,
+      "bits_per_elem": 4.5,
+      "nmse": 0.0038354983553290367
+    },
+    {
+      "qjl_block": 128,
+      "qjl_dim": 128,
+      "ratio": 1.0,
+      "theory_reduction": 0.6366197723675814,
+      "bits_per_elem": 5.0,
+      "nmse": 0.003740185173228383
+    },
+    {
+      "qjl_block": 512,
+      "qjl_dim": 8,
+      "ratio": 0.015625,
+      "theory_reduction": 0.009947183943243459,
+      "bits_per_elem": 4.015625,
+      "nmse": 0.0048414864577353
+    },
+    {
+      "qjl_block": 512,
+      "qjl_dim": 16,
+      "ratio": 0.03125,
+      "theory_reduction": 0.019894367886486918,
+      "bits_per_elem": 4.03125,
+      "nmse": 0.004793695639818907
+    },
+    {
+      "qjl_block": 512,
+      "qjl_dim": 32,
+      "ratio": 0.0625,
+      "theory_reduction": 0.039788735772973836,
+      "bits_per_elem": 4.0625,
+      "nmse": 0.004699563607573509
+    },
+    {
+      "qjl_block": 512,
+      "qjl_dim": 64,
+      "ratio": 0.125,
+      "theory_reduction": 0.07957747154594767,
+      "bits_per_elem": 4.125,
+      "nmse": 0.004529076162725687
+    },
+    {
+      "qjl_block": 512,
+      "qjl_dim": 128,
+      "ratio": 0.25,
+      "theory_reduction": 0.15915494309189535,
+      "bits_per_elem": 4.25,
+      "nmse": 0.004230926278978586
+    }
+  ],
+  "outlier_stress": [
+    {
+      "outlier_scale": 1.0,
+      "nvfp4": 0.009084136225283146,
+      "turboquant": 0.007081027142703533
+    },
+    {
+      "outlier_scale": 5.0,
+      "nvfp4": 0.009051243774592876,
+      "turboquant": 0.007057780399918556
+    },
+    {
+      "outlier_scale": 20.0,
+      "nvfp4": 0.008866279385983944,
+      "turboquant": 0.006929121911525726
+    },
+    {
+      "outlier_scale": 60.0,
+      "nvfp4": 0.004894347861409187,
+      "turboquant": 0.0038354983553290367
+    },
+    {
+      "outlier_scale": 150.0,
+      "nvfp4": 0.0017722308402881026,
+      "turboquant": 0.0013875256991013885
+    }
+  ]
+}

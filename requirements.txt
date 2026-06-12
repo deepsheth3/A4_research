@@ -1,0 +1,18 @@
+# Core (Mac CPU/MPS + GPU). Pure-PyTorch; no Triton, no TRT-LLM.
+torch>=2.4
+numpy>=1.26
+
+# Validation / error analysis
+matplotlib>=3.8
+
+# End-to-end perplexity harness (the GPU run)
+transformers>=4.40
+datasets>=2.18
+accelerate>=0.30
+
+# Tests
+pytest>=8.0
+
+# NOTE: OmniStack-RS (sibling repo) is required for the reused QJL primitive.
+# Clone it next to this repo, or set OMNISTACK_PATH. We import only its pure
+# `omnistack_rs.quantization` subpackage, so its Triton dependency is not needed.

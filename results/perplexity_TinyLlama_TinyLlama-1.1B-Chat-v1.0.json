@@ -1,0 +1,20 @@
+{
+  "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "config": {
+    "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    "max_len": 1024,
+    "stride": 512,
+    "limit": 50000,
+    "qjl_block": 128,
+    "qjl_dim": 64,
+    "modes": [
+      "nvfp4_eqzp_svd"
+    ]
+  },
+  "results": {
+    "nvfp4_eqzp_svd": {
+      "perplexity": 8.011940002441406,
+      "seconds": 21.3
+    }
+  }
+}

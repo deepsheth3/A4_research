@@ -1,0 +1,28 @@
+{
+  "model": "unsloth/Meta-Llama-3.1-8B",
+  "config": {
+    "model": "unsloth/Meta-Llama-3.1-8B",
+    "limit": 30,
+    "max_new_tokens": 256,
+    "qjl_block": 128,
+    "qjl_dim": 64,
+    "modes": [
+      "fp16",
+      "nvfp4_eqzp_svd_qjl"
+    ]
+  },
+  "results": {
+    "fp16": {
+      "accuracy": 50.0,
+      "correct": 15,
+      "total": 30,
+      "seconds": 55.9
+    },
+    "nvfp4_eqzp_svd_qjl": {
+      "accuracy": 46.67,
+      "correct": 14,
+      "total": 30,
+      "seconds": 663.2
+    }
+  }
+}
