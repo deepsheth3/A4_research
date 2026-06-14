@@ -108,6 +108,10 @@ reduction), not over the full hidden vector (~1%, useless).
 | fp4 (E2M1) low-rank factors | worse than fp8 at equal bytes (E2M1 too coarse for factors) |
 | joint W+A (quantized-activation Hessian) | no signal — interaction negligible (Q(x)≈x) |
 | per-layer rank allocation | worse than uniform |
+| per-block (16×16) Hadamard, always-rotate | hurts in isolation (6.205 vs zp 6.186); helps only as best-of (6.129); a wash in the full stack (SVD already covers it) |
+| per-block Hadamard, deployable fixed-mask (hmask70) | wash (6.052 vs 6.057): at a 70% win-rate threshold only 0.17% of block-positions reliably benefit — equalization already removed the static per-channel outlier structure |
+| channel permutation (outlier-isolation, on model) | wash (6.051 vs 6.057): redundant with equalization. Naive magnitude-sort can even *hurt* (concentrates variance, raises block maxima) — only outlier-channel *isolation* helps, and eq already does it |
+| output-weighted scale selection (`oda`, diag WWᵀ) | wash (6.052 vs 6.050): the additive SVD+QJL side-channel absorbs the base-quant scale objective, so input-MSE vs output-weighted-MSE doesn't matter |
 
 ---
 
@@ -118,8 +122,11 @@ reduction), not over the full hidden vector (~1%, useless).
 - **Light calibration, not calibration-free.** Uses a few wikitext-train windows
   for equalization scales (A4) and GPTQ Hessians (W4). Frame as *light-calibration
   PTQ*.
-- **Single model / dataset for the strong numbers.** Llama-3.1-8B, WikiText-2 PPL.
-  Cross-model breadth and the full downstream suite are pending.
+- **Cross-model confirmed (5 models, 3 families, 4 sizes).** A4 reaches near-FP8 on
+  Llama-3.2-1B/3B, Llama-3.1-8B, Qwen2.5-7B, Mistral-7B (all 7B+ within +0.06–0.10
+  of FP8; best is Qwen at 80% gap-closed). The "residual is random" mechanism repeats
+  identically on all five. The strong numbers are no longer single-model. The full
+  downstream suite (MMLU/GSM8K/HellaSwag) and head-to-head baselines are still pending.
 - **W4A4 is not FP8-parity** (best +0.35). Within pure / light-calibration /
   hardware-native / Pareto-clean 4-bit, this is near the practical floor; reaching
   parity requires breaking a premise (learned rotations, fine-tuning, or

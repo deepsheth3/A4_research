@@ -1,0 +1,34 @@
+{
+  "model": "gpt2",
+  "config": {
+    "model": "gpt2",
+    "max_len": 1024,
+    "stride": 512,
+    "limit": 50,
+    "qjl_block": 128,
+    "qjl_dim": 64,
+    "w4": false,
+    "w4_gptq": false,
+    "awq": false,
+    "w4_lowrank": false,
+    "w4_rank_div": 16,
+    "w4_lowrank_fp8": false,
+    "w4_lowrank_fp4": false,
+    "kv4": false,
+    "w4_rank_alloc": false,
+    "modes": [
+      "fp16",
+      "nvfp4_raw"
+    ]
+  },
+  "results": {
+    "fp16": {
+      "perplexity": 81.15538787841797,
+      "seconds": 0.3
+    },
+    "nvfp4_raw": {
+      "perplexity": 76.06717681884766,
+      "seconds": 0.1
+    }
+  }
+}

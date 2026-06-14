@@ -1,0 +1,42 @@
+{
+  "nvfp4_raw": {
+    "ppl": 6.2591,
+    "alpha": 0.9003,
+    "greedy": 0.8805,
+    "exp_emitted": 4.097,
+    "speedup": 2.927,
+    "sec": 57.5
+  },
+  "nvfp4_ghad": {
+    "ppl": 6.1853,
+    "alpha": 0.9113,
+    "greedy": 0.8962,
+    "exp_emitted": 4.188,
+    "speedup": 2.992,
+    "sec": 450.5
+  },
+  "nvfp4_eqzp": {
+    "ppl": 6.1551,
+    "alpha": 0.9173,
+    "greedy": 0.894,
+    "exp_emitted": 4.239,
+    "speedup": 3.028,
+    "sec": 292.4
+  },
+  "nvfp4_eqzp_ghad": {
+    "ppl": 6.1358,
+    "alpha": 0.9208,
+    "greedy": 0.9079,
+    "exp_emitted": 4.268,
+    "speedup": 3.049,
+    "sec": 455.3
+  },
+  "nvfp4_eqzp_svd_qjl": {
+    "ppl": 6.0499,
+    "alpha": 0.9393,
+    "greedy": 0.9265,
+    "exp_emitted": 4.428,
+    "speedup": 3.163,
+    "sec": 366.6
+  }
+}

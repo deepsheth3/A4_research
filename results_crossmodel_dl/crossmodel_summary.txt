@@ -1,0 +1,40 @@
+==================== unsloth/Llama-3.2-1B ====================
+test tokens: 289077
+  fp16         PPL =    9.283   (5.9s)
+  fp8          PPL =    9.340   (18.0s)
+  nvfp4_raw    PPL =   10.018   (23.2s)
+  nvfp4_eqzp_svd_qjl PPL =    9.699   (105.6s)
+capturing 8 layers (of 113 eligible):
+wrote results/caps_unsloth_Llama-3.2-1B.pt  (~204 MB, 8 layers) — scp it down for offline analysis
+
+==================== unsloth/Llama-3.2-3B ====================
+test tokens: 289077
+  fp16         PPL =    7.438   (12.1s)
+  fp8          PPL =    7.466   (37.2s)
+  nvfp4_raw    PPL =    7.776   (40.8s)
+  nvfp4_eqzp_svd_qjl PPL =    7.573   (223.8s)
+capturing 10 layers (of 197 eligible):
+wrote results/caps_unsloth_Llama-3.2-3B.pt  (~322 MB, 10 layers) — scp it down for offline analysis
+
+==================== Qwen/Qwen2.5-7B ====================
+test tokens: 299078
+  fp16         PPL =    6.512   (20.0s)
+  fp8          PPL =    6.542   (58.7s)
+  nvfp4_raw    PPL =    6.826   (57.2s)
+  nvfp4_eqzp_svd_qjl PPL =    6.598   (357.5s)
+capturing 10 layers (of 169 eligible):
+wrote results/caps_Qwen_Qwen2.5-7B.pt  (~275 MB, 10 layers) — scp it down for offline analysis
+
+==================== unsloth/mistral-7b-v0.3 ====================
+test tokens: 334661
+Traceback (most recent call last):
+RuntimeError: Task error: File reconstruction error: Internal Writer Error: Background writer channel closed
+Traceback (most recent call last):
+RuntimeError: Task error: File reconstruction error: Internal Writer Error: Background writer channel closed
+
+ALL DONE in 18 min.
+Copy results off:  scp -P <port> -r root@<ip>:~/proj/NVFP4_Research/results .
+Then locally, per model:
+  python3 -m turboquant.validation.pattern_hunt    --caps results/caps_<tag>.pt
+  python3 -m turboquant.validation.format_ceiling  --caps results/caps_<tag>.pt
+  python3 -m turboquant.validation.analyze_rounding_ceiling --caps results/caps_<tag>.pt

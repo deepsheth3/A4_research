@@ -225,3 +225,91 @@ def test_svd_side_channel_beats_qjl_on_structured_input():
         return (((x - xh) @ W) ** 2).sum() / ((x @ W) ** 2).sum()
 
     assert oerr(q.fake_quantize_svd(x, basis)) < oerr(qjl.fake_quantize(x))
+
+def test_hwht_transform_is_exact_inverse():
+    # H²=I: applying the block Hadamard twice (no quant) returns the input.
+    from turboquant.nvfp4 import _block_hwht
+    torch.manual_seed(0)
+    x = torch.randn(8, 256)
+    assert torch.allclose(_block_hwht(_block_hwht(x, 16), 16), x, atol=1e-5)
+
+
+def test_hwht_helps_outlier_blocks():
+    # One large value per 16-block: the within-block Hadamard spreads it, so the
+    # shared MX4 scale resolves the rest finer -> lower per-block MSE than plain.
+    from turboquant.nvfp4 import nvfp4_quantize_hwht, nvfp4_quantize_zp
+    torch.manual_seed(0)
+    x = 0.1 * torch.randn(64, 512)
+    x.reshape(64, 32, 16)[:, :, 0] += 6.0  # one outlier per block
+    e_plain = ((x - nvfp4_quantize_zp(x, optclip=True)) ** 2).sum()
+    e_hwht = ((x - nvfp4_quantize_hwht(x, optclip=True, hwht="always")) ** 2).sum()
+    assert e_hwht < e_plain
+
+
+def test_hwht_bestof_never_worse_than_plain():
+    # best-of {rotate, no-rotate} per block includes the no-rotate option, so it
+    # can't lose to plain zp on any distribution.
+    from turboquant.nvfp4 import nvfp4_quantize_hwht, nvfp4_quantize_zp
+    torch.manual_seed(1)
+    x = torch.randn(64, 512)
+    e_plain = ((x - nvfp4_quantize_zp(x, optclip=True)) ** 2).sum()
+    e_best = ((x - nvfp4_quantize_hwht(x, optclip=True, hwht="bestof")) ** 2).sum()
+    assert e_best <= e_plain + 1e-6
+
+def test_hmask_all_false_equals_plain_and_all_true_equals_always():
+    from turboquant.nvfp4 import nvfp4_quantize_hmask, nvfp4_quantize_hwht, nvfp4_quantize_zp
+    torch.manual_seed(0)
+    x = torch.randn(16, 256)
+    nb = 256 // 16
+    none = torch.zeros(nb, dtype=torch.bool)
+    allm = torch.ones(nb, dtype=torch.bool)
+    assert torch.allclose(nvfp4_quantize_hmask(x, none, optclip=True),
+                          nvfp4_quantize_zp(x, optclip=True), atol=1e-5)
+    assert torch.allclose(nvfp4_quantize_hmask(x, allm, optclip=True),
+                          nvfp4_quantize_hwht(x, optclip=True, hwht="always"), atol=1e-5)
+
+
+def test_hmask_selective_beats_always_on_mixed_blocks():
+    # half the block positions are outlier-heavy (rotation helps), half smooth
+    # (rotation hurts). A mask rotating only the outlier positions should beat
+    # both always-rotate and plain on the mixed tensor.
+    from turboquant.nvfp4 import nvfp4_quantize_hmask, nvfp4_quantize_hwht, nvfp4_quantize_zp
+    torch.manual_seed(0)
+    nb = 16
+    x = 0.1 * torch.randn(128, nb * 16)
+    xb = x.reshape(128, nb, 16)
+    xb[:, : nb // 2, 0] += 6.0              # outliers in first half of positions
+    x = xb.reshape(128, nb * 16)
+    mask = torch.zeros(nb, dtype=torch.bool); mask[: nb // 2] = True
+    e_plain = ((x - nvfp4_quantize_zp(x, optclip=True)) ** 2).sum()
+    e_always = ((x - nvfp4_quantize_hwht(x, optclip=True, hwht="always")) ** 2).sum()
+    e_mask = ((x - nvfp4_quantize_hmask(x, mask, optclip=True)) ** 2).sum()
+    assert e_mask < e_plain and e_mask < e_always
+
+def test_perm_identity_equals_plain():
+    from turboquant.nvfp4 import nvfp4_quantize_perm, nvfp4_quantize_zp
+    torch.manual_seed(0)
+    x = torch.randn(8, 256)
+    ident = torch.arange(256)
+    assert torch.allclose(nvfp4_quantize_perm(x, ident, ident, optclip=True),
+                          nvfp4_quantize_zp(x, optclip=True), atol=1e-5)
+
+
+def test_perm_isolates_outlier_channels():
+    # The real mechanism: a few *consistent* outlier channels scattered across
+    # blocks pollute many block scales (each forces a coarse scale, crushing the
+    # other 15). Grouping them (highest-amax-first) confines the damage to one
+    # block, leaving the rest tight -> lower total error. (Magnitude-sort only
+    # helps under this outlier-channel regime, NOT when large channels are
+    # abundant — see the channel-permutation finding in the README.)
+    from turboquant.nvfp4 import nvfp4_quantize_perm, nvfp4_quantize_zp
+    torch.manual_seed(0)
+    d = 256
+    x = torch.randn(128, d)
+    x[:, [3, 40, 77, 140, 201]] *= 30.0
+    amax = x.abs().amax(0)
+    perm = torch.argsort(amax, descending=True)
+    inv = torch.empty_like(perm); inv[perm] = torch.arange(d)
+    e_plain = ((x - nvfp4_quantize_zp(x, optclip=True)) ** 2).sum()
+    e_perm = ((x - nvfp4_quantize_perm(x, perm, inv, optclip=True)) ** 2).sum()
+    assert e_perm < e_plain

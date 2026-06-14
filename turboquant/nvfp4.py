@@ -16,6 +16,8 @@ NVFP4 format:
 
 from __future__ import annotations
 
+import math
+
 import torch
 
 # The 8 non-negative E2M1 magnitudes; the signed grid is built from these.
@@ -74,6 +76,58 @@ def _block_scale(x: torch.Tensor, block: int, quantize_scale: bool) -> torch.Ten
 # (never clips); smaller gammas sacrifice the block max for finer resolution on
 # the other 15 elements (ACIQ-style, applied per MX4 block, online).
 _OPTCLIP_GAMMAS = (0.62, 0.75, 0.88, 1.0)
+
+
+def _largest_pow2_div(n: int, cap: int = 8192) -> int:
+    """Largest power of two that divides ``n`` (capped). Hidden=4096 -> 4096;
+    intermediate=14336 -> 2048. Used to size the Hadamard tile."""
+    p = 1
+    while (n % (p * 2) == 0) and (p * 2 <= cap):
+        p *= 2
+    return p
+
+
+def _fwht(x: torch.Tensor) -> torch.Tensor:
+    """Normalized fast Walsh-Hadamard transform over the last dim (power of 2).
+
+    Returns ``H x / sqrt(n)`` with ``H`` the Walsh-Hadamard matrix. The transform
+    is orthonormal and symmetric, hence an involution: applying it twice is the
+    identity, so the same call inverts it."""
+    n = x.shape[-1]
+    if n & (n - 1) != 0:
+        raise ValueError(f"_fwht needs a power-of-2 last dim, got {n}")
+    lead = x.shape[:-1]
+    y = x.reshape(-1, n).clone()
+    h = 1
+    while h < n:
+        y = y.view(-1, n // (2 * h), 2, h)
+        a, b = y[:, :, 0, :], y[:, :, 1, :]
+        y = torch.stack((a + b, a - b), dim=2).reshape(-1, n)
+        h *= 2
+    return (y / math.sqrt(n)).reshape(*lead, n)
+
+
+def nvfp4_quantize_ghad(
+    x: torch.Tensor,
+    block: int = 16,
+    optclip: bool = True,
+    had_size: int | None = None,
+) -> torch.Tensor:
+    """QuaRot-style rotated NVFP4: rotate by a (tiled) Walsh-Hadamard, quantize in
+    the rotated frame, rotate back. For power-of-2 last dims this is a single
+    global Hadamard; otherwise it is applied over tiles of the largest power-of-2
+    divisor (a documented approximation of QuaRot's online Hadamard). Used as a
+    rotation baseline. The rotate-back makes the weight matrix unchanged, so this
+    is an activation-side fake-quant."""
+    n = x.shape[-1]
+    hs = had_size or _largest_pow2_div(n)
+    if hs % block != 0:
+        return nvfp4_quantize_zp(x, block=block, optclip=optclip)
+    xt = x.reshape(*x.shape[:-1], n // hs, hs)
+    xr = _fwht(xt)                                       # rotate
+    q = nvfp4_quantize_zp(xr, block=block, optclip=optclip)
+    xq = _fwht(q)                                        # involution -> rotate back
+    return xq.reshape(*x.shape[:-1], n)
 
 
 def nvfp4_quantize(
@@ -182,6 +236,115 @@ def nvfp4_quantize_zp(
     idx = e.reshape(*xb.shape[:-1], c).argmin(dim=-1)   # (..., nb)
     best_q = q.gather(-2, idx[..., None, None].expand(*idx.shape, 1, block)).squeeze(-2)
     return best_q.reshape(*lead, n)
+
+
+def _block_hwht(x: torch.Tensor, block: int) -> torch.Tensor:
+    """Normalized Walsh-Hadamard transform *within* each ``block`` (last dim).
+
+    Block-diagonal: it never mixes across MX4 blocks, so it's distinct from the
+    global rotation in ``rotation.py``. Self-inverse (H²=I), multiply-free.
+    """
+    from turboquant.rotation import _wht
+    *lead, n = x.shape
+    xb = x.reshape(*lead, n // block, block)
+    return _wht(xb).reshape(*lead, n)
+
+
+def nvfp4_quantize_hwht(
+    x: torch.Tensor,
+    block: int = 16,
+    quantize_scale: bool = True,
+    optclip: bool = False,
+    hwht: str = "always",
+) -> torch.Tensor:
+    """NVFP4 with a per-block (16×16) Hadamard applied *before* E2M1 rounding.
+
+    The within-block Hadamard spreads a block's outlier energy across its 16
+    coefficients, lowering the block max so the shared MX4 scale resolves the
+    other elements more finely — then it's inverted (H²=I, exact). Distinct from
+    the global rotation we ruled out: it's a *local basis*, never mixing blocks.
+
+    Deploy: weights fold ``H`` offline (store ``H·W`` blocks, zero cost);
+    activations get a fused block-diagonal Hadamard prologue; ``H²=I`` keeps the
+    FP4×FP4 GEMM exact. ``always`` = rotate every block (deployable, no flag).
+    ``bestof`` = per-block min-MSE of {rotate, no-rotate} — the *upper bound*;
+    deploying it needs a per-block-position pattern decided offline (a fixed
+    choice per position, not a per-token flag), so it's a measurement aid here.
+
+    NOTE: ``imp`` output-domain weighting isn't carried through — importance is a
+    per-channel input-domain quantity that doesn't map trivially under H, and the
+    gain it gave was ~0.01. Uniform-MSE block selection in the rotated domain.
+    """
+    h = _block_hwht(x, block)
+    qh = nvfp4_quantize_zp(h, block=block, quantize_scale=quantize_scale, optclip=optclip)
+    x_rot = _block_hwht(qh, block)                     # inverse = re-apply (H²=I)
+    if hwht == "always":
+        return x_rot
+    if hwht != "bestof":
+        raise ValueError(f"hwht must be 'always' or 'bestof', got {hwht!r}")
+    q_plain = nvfp4_quantize_zp(x, block=block, quantize_scale=quantize_scale, optclip=optclip)
+    *lead, n = x.shape
+    nb = n // block
+    er = ((x - x_rot).reshape(*lead, nb, block) ** 2).sum(-1, keepdim=True)
+    eu = ((x - q_plain).reshape(*lead, nb, block) ** 2).sum(-1, keepdim=True)
+    out = torch.where(er <= eu, x_rot.reshape(*lead, nb, block),
+                      q_plain.reshape(*lead, nb, block))
+    return out.reshape(*lead, n)
+
+
+def nvfp4_quantize_hmask(
+    x: torch.Tensor,
+    mask: torch.Tensor,
+    block: int = 16,
+    quantize_scale: bool = True,
+    optclip: bool = False,
+) -> torch.Tensor:
+    """Selective per-block-position Hadamard — the *deployable* best-of.
+
+    ``mask`` is a fixed boolean pattern (shape ``(n//block,)``) decided offline
+    from calibration win-rates: block positions where the within-block Hadamard
+    usually beats plain quant are rotated, the rest are quantized normally. No
+    per-token decision, no flag, one deterministic path — at deploy the masked
+    positions fold ``HᵀW`` into the weights, unmasked positions keep ``W``.
+
+    This avoids always-rotate's smooth-block penalty (those positions stay
+    normal) while capturing the outlier-position win — a static approximation of
+    the per-block best-of oracle, which itself isn't Pareto-safe (it needs a
+    per-token branch / two weight paths).
+    """
+    from turboquant.rotation import _wht
+    *lead, n = x.shape
+    nb = n // block
+    xb = x.reshape(*lead, nb, block)
+    m = mask.view(*([1] * len(lead)), nb, 1).to(torch.bool)
+    xin = torch.where(m, _wht(xb), xb)                       # rotate masked positions
+    q = nvfp4_quantize_zp(xin.reshape(*lead, n), block=block,
+                          quantize_scale=quantize_scale, optclip=optclip)
+    qb = q.reshape(*lead, nb, block)
+    return torch.where(m, _wht(qb), qb).reshape(*lead, n)    # inverse on masked (H²=I)
+
+
+def nvfp4_quantize_perm(
+    x: torch.Tensor,
+    perm: torch.Tensor,
+    inv: torch.Tensor,
+    block: int = 16,
+    quantize_scale: bool = True,
+    optclip: bool = False,
+) -> torch.Tensor:
+    """NVFP4 with a fixed offline channel permutation before block grouping.
+
+    ``perm`` reorders the last dim so each MX4 block groups channels of similar
+    magnitude (decided offline from calibration amax — e.g. magnitude-sorted),
+    shrinking each block's dynamic range → tighter shared scale. ``inv`` maps
+    back. Distinct from rotation: it *regroups* channels (preserving MX4 locality
+    and adding zero arithmetic), it doesn't mix them. Pareto-clean — ``perm``
+    folds into the producing layer's weight columns and ``inv`` into this layer's
+    rows, both offline; the main FP4 GEMM is unchanged.
+    """
+    q = nvfp4_quantize_zp(x[..., perm], block=block,
+                          quantize_scale=quantize_scale, optclip=optclip)
+    return q[..., inv]
 
 
 def waware_comp(A: torch.Tensor, block: int = 16) -> torch.Tensor:

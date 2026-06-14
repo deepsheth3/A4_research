@@ -1,131 +1,190 @@
-# NVFP4 Research Roadmap — W4A4KV4 at FP8 Accuracy
+# NVFP4 Research Roadmap
 
-## Current status
-- **A4 is strong**: `eqzp_svd_qjl` = **6.050**, ≈ **+0.101 PPL from FP8** on Llama-3.1-8B / WikiText-2 (FP16 5.918, FP8 5.948/5.949, raw FP4 6.263). 68% of the FP4→FP8 gap closed, hardware-native main path, all corrections offline-folded or fused-epilogue.
-- **W4A4 is NOT solved**: naive W4 pushed PPL to **6.629**; the extra **+0.579** came entirely from *raw* FP4 weight quantization (no error feedback).
-- **Biggest unlock is not more activation tricks — it's making W4 stop destroying the model.**
+Status as of 2026-06-12. The old paper-survey roadmap is archived at the bottom;
+most of it has been executed (see "What's done"). This version is organized
+around **what we've established** and **the one active hypothesis worth testing
+next** (per-block Hadamard), plus the path to publication.
 
----
-
-## Papers to track
-
-### A. NVFP4 / MXFP4 / FP4-specific
-| Paper | Why it matters | What to take |
-|---|---|---|
-| **ARCQuant** (Augmented Residual Channels for NVFP4) | Direct NVFP4 competitor; residual channels with unified NVFP4 GEMM | Residual-channel design to fix A4/W4 without random QJL overhead |
-| **Four Over Six** (Adaptive Block Scaling) | Very close to optclip; evaluates alternative per-block scale factors | Replace hand-designed optclip candidates with 4-over-6 scale selection |
-| **ScaleSweep** (Accurate NVFP4 PTQ) | Block-scale init + importance-aware scale choice | Use weight/activation importance when choosing scales, not plain MSE |
-| **RaZeR** (Redundant Zero Remapping) | FP4 redundant-zero representation adds useful values | Better version of best-of-two zero-point idea |
-| **Adaptive Block-Scaled Data Types** | Adaptive FP4/INT4 block-scaled formats | Per-block format: FP4 where tails matter, INT4 where uniform helps |
-| **MixFP4** (Adaptive FP4/INT4 blocks) | Selects FP4 micro-format per block | E2M1 vs E1M2/E2M2-like block choice as ablation |
-| **AMXFP4** (Asymmetric Microscaling FP) | Asymmetric shared scales for activation outliers | Better asymmetric scale/zero handling than naive zero-point |
-| **LLM-FP4** | Older but key FP4 W/A quant | Per-channel activation scaling + FP4 clipping search |
-
-### B. Rotation / flattening / outlier / activation-shaping
-| Paper | Why it matters | What to take |
-|---|---|---|
-| **SmoothQuant** | Classic outlier smoothing into weights | Keep equalization, tune α per layer/channel more systematically |
-| **QuaRot** (rotated W4A4KV4) | Rotation baseline | Baseline only — our MX4 tests showed rotation *hurts* under NVFP4 |
-| **SpinQuant** (learned rotations) | Learned > random rotations in W4A4KV4 | Revive rotation only as learned local/channel permutation, not global WHT |
-| **FlatQuant** (learnable affine flattening, fused) | Flattens W+A with fused kernels | Strong candidate to improve A4 and W4 deployably |
-| **InfoQuant** (distribution shaping) | Activation quant as distribution design | "Quantizer-facing distribution" idea to beat MSE for A4 |
-| **OffQ** (offsetting structured outliers) | Offsets low-dim structured outliers | Structured offset extraction before NVFP4 scaling |
-| **DuQuant** (dual transform) | Redistributes activation outliers | Activation-transformation baseline |
-
-### C. Low-rank / residual / error-reconstruction
-| Paper | Why it matters | What to take |
-|---|---|---|
-| **SERQ** (saliency-aware low-rank) | Very close to our SVD; saliency-aware compensation for W4A4 | Replace plain top-SVD with saliency-aware rank allocation |
-| **Low-Rank Correction for Quantized LLMs** | Low-rank correction for activation error | Compare SVD side-channel vs full low-rank correction |
-| **LQER** (low-rank error reconstruction) | Activation-induced scaling guides reconstruction | Use activation-weighted SVD, not plain SVD |
-| **QERA** (analytical framework) | Closed-form low-rank error reconstruction | Closed-form objective to choose SVD/QJL basis |
-| **ASER** (smoothing + low-rank recon) | Close to our equalization + SVD stack | Use as a direct baseline |
-| **GlowQ** (group-shared low-rank) | Shares low-rank factors across input-sharing groups | Reduce SVD cost by sharing bases across q/k/v or gate/up |
-| **Preserve-Then-Quantize** (rank budgets) | Preserves top singular subspace before quantizing residual | For W4: protect dominant directions before NVFP4 |
-
-### D. Weight quantization
-| Paper | Why it matters | What to take |
-|---|---|---|
-| **GPTQ** | The obvious fix for our raw-W4 failure | Hessian-aware NVFP4 weight quant with error feedback |
-| **AWQ** | Protects salient weight channels via activation stats | AWQ-style channel protection before NVFP4 weight quant |
-| **MR-GPTQ** (microscaling FP4 weight quant) | Directly relevant to MXFP4/NVFP4 weights | **Probably the most important paper for fixing W4** |
-| **Atom** (low-bit serving system) | Full W4A4 serving: mixed precision, dynamic acts, KV quant, kernels | Copy the systems discipline: accuracy + throughput + kernels + batching |
-
-### E. KV cache / TurboQuant / QJL
-| Paper | Why it matters | What to take |
-|---|---|---|
-| **QJL** (1-bit JL for KV) | Our OmniStack/QJL lineage | Keep for KV + residual side-channel; don't rely on QJL alone for A4 |
-| **TurboQuant** (online VQ) | PolarQuant + QJL theory | Keep theory for KV; activations need W-aware correction |
-| **PolarQuant** (Hadamard Gaussian weight quant) | We found PolarQuant-style ideas fail under MX4 activations | Cite as related work; use our negative result to differentiate |
+## The one rule (governs everything)
+**Pareto-clean: no technique is kept unless it improves an axis without
+regressing any other** (accuracy, latency, memory, the pure-FP4 main GEMM path).
+Corrections must be offline-folded into weights or applied in a fused epilogue,
+and the whole stack must stay better-than-FP8 on every axis. See the
+`nvfp4-pareto-constraint` memory.
 
 ---
 
-## Goal
-**W4A4KV4 with FP8-like accuracy** — A4 near solved, W4 gets GPTQ/AWQ/MR-GPTQ treatment, KV4 uses OmniStack/QJL/TurboQuant.
+## What's done (Llama-3.1-8B, full WikiText-2; FP16 5.918, FP8 5.948)
 
-## Phase 1 — Fix W4 first (the bottleneck)
-Naive W4A4 went 6.050 → 6.629. Weight quant cost is enormous.
-
-- **W4 v1**: GPTQ-style Hessian-aware NVFP4 weight quant; group/block=16; E2M1 + FP8 E4M3 scale; optclip / Four-Over-Six candidate scales; row-chunked to avoid OOM.
-- **W4 v2**: AWQ-style activation-aware channel scaling; protect top 1–5% salient channels; fold scale into adjacent weights.
-- **W4 v3**: MR-GPTQ-style FP4-specific error feedback; block-Hadamard for *weights only* (not activations); use activation Hessian **XXᵀ**, not WWᵀ.
-
-**Targets** (from current 6.629): first ≤6.25 · strong ≤6.15 · very strong ≤6.10 · dream ≤6.05–6.08.
-
-## Phase 2 — Saliency-aware SVD (replace plain SVD)
-Plain Frobenius SVD isn't optimal (SERQ/LQER/QERA).
-- Current: top singular vectors of W / equalized W.
-- Better: top singular vectors of **activation-weighted error**, objective `||(XW) − (Q(X)W + correction)||`.
-- Best: per-layer rank allocation — high rank for down_proj/o_proj/maybe gate_proj, low/zero for insensitive layers. Reduces side bits while improving quality.
-
-## Phase 3 — Four-Over-Six + ScaleSweep objective for optclip
-Replace fixed candidate MSE search with a weighted objective:
-- Activations: choose scale by output-domain error `||(Q_s(X) − X)W||²`.
-- Weights: choose scale by activation-Hessian error `trace((W − Q_s(W))ᵀ H (W − Q_s(W)))`.
-- Candidates: max/6, max/4, percentile/6, ScaleSweep-style learned, best-of-two zero-remap.
-- **One of the highest-return improvements.**
-
-## Phase 4 — ARCQuant-style residual channels
-Add residual channels into the reduction dim so compensation stays GEMM-friendly.
-- A4 main: NVFP4 eqzp activation. Residual: top-r W-aware residual channels quantized to NVFP4/FP8, fused into GEMM reduction dim.
-- Compare vs SVD side-channel / QJL / SVD+QJL. Switch if ARC beats them at equal bit budget.
-
-## Phase 5 — FlatQuant / InfoQuant (only if fusable)
-Don't add latency-destroying methods. Ablate: `eqzp_svd_qjl` vs FlatQuant+eqzp(/+svd) vs InfoQuant-transform+eqzp(/+svd). **Keep only if PPL improves ≥0.03 AND overhead is near-zero/fusable.**
-
-## Phase 6 — KV cache (OmniStack/QJL first)
-Don't overcomplicate KV yet. Baseline FP16 KV → OmniStack KV → QJL/TurboQuant KV → maybe NVFP4 KV. Long-context eval only after W4A4 PPL is not broken.
-
-## Phase 7 — Evaluation
-1. WikiText-2 full
-2. GSM8K 150–200 q **with checkpoint/resume** (30-q probe only ruled out collapse)
-3. MMLU small subset
-4. HellaSwag or ARC-Challenge
-5. Needle 8K/32K for KV
+- **A4 (FP4 activations, FP16 weights): 6.050 = +0.10 vs FP8, 68% gap closed.**
+  Stack = channel equalization + per-block best-of-{0,mid} zero-point × optclip +
+  W-aware SVD side-channel + per-block QJL. Near-FP8 parity, the hard half.
+- **W4A4 (FP4 weights + activations): best 6.294 = +0.35 vs FP8, 58% weight
+  cliff recovered, Pareto-clean (0.75 byte/elem < FP8).** Winner = GPTQ +
+  **additive low-rank residual correction** (in/8, fp8 factors).
+- **Central finding:** under per-16 microscaling, **scaling/redistribution
+  methods are redundant-to-harmful** (PolarQuant, global rotation, GPTQ ~13%,
+  AWQ worse, rank allocation worse); **only additive side-channels help** (SVD,
+  QJL, low-rank weight correction).
+- **Negatives ruled out:** fp4 factors (< fp8), joint W+A Hessian (no signal —
+  interaction negligible), per-layer rank allocation (< uniform).
+- GSM8K 30-q probe: 50.0% → 46.7% (noise; rules out collapse, not parity).
 
 ---
 
-## "Best of all papers" target stack — OUR idea is the spine
-**Framing (important):** our stack (`eqzp_svd_qjl` + OmniStack KV) is the base and stays. We do NOT replace it with any paper. Each paper technique is a candidate *drop-in for ONE component*, adopted only if it beats OUR version of that component AND passes the Pareto gate. Component-level tournament where our piece is the defending champion in every slot; everything else of ours is kept.
+## RESOLVED — per-block (block-diagonal) Hadamard (tested on real 8B, 2026-06-12)
 
-| Slot | Our champion (default) | Challenger — adopt only if it beats ours |
+**Idea (user):** apply a 16×16 Hadamard *within* each block before E2M1
+quantization to spread within-block outliers → tighter scale. Distinct from the
+*global* Hadamard we ruled out — it never mixes across blocks.
+
+**Verdict: works in isolation *as a per-block choice*; redundant in the full
+stack.** Implemented (`nvfp4_quantize_hwht`, deployable always-rotate folds
+offline + multiply-free) and run on Llama-3.1-8B, full WikiText-2 (same box;
+controls fp8 5.948, eqzp_svd_qjl reproduced 6.057):
+
+| Test | PPL | vs baseline |
 |---|---|---|
-| Per-block scale | optclip best-of-8 (MSE) | 4-over-6 / ScaleSweep *objective* into our best-of-N |
-| Zero-point | best-of-two zp | RaZeR redundant-zero |
-| Side-channel | eq + SVD + QJL | saliency basis / per-layer rank grafted into our SVD; ARCQuant residual (if fusable) |
-| Weights (open slot) | — (we had no W4) | GPTQ/MR-GPTQ/AWQ fills it |
-| KV | OmniStack/QJL | TurboQuant comparison; NVFP4 KV |
-| Transforms | SmoothQuant equalization | FlatQuant/InfoQuant only if fusable; NO global QuaRot under MX4 |
+| nvfp4_zp (isolation baseline) | 6.186 | — |
+| nvfp4_hwht (always-rotate) | 6.205 | **−0.019 (hurts)** |
+| **nvfp4_hwht_bestof** | **6.129** | **+0.057 (wins)** |
+| eqzp_svd_qjl (full-stack control) | 6.057 | — |
+| eqzp_svd_qjl_hwht (composed) | 6.050 | +0.007 (**wash, within noise**) |
 
-- **Hardware invariant**: keep NVFP4 main path; corrections offline-folded or fused-epilogue; no unfused high-precision branch.
+**What it confirmed:** the Hadamard is a *local basis option* — it helps only
+when it's a per-block **choice** (forced always-rotate hurts smooth blocks),
+validating the best-of-N philosophy (like zero-point/optclip) on a real model.
+This matched the synthetic prediction exactly (always-rotate ~neutral/negative on
+smooth distributions, best-of positive everywhere).
 
-## Priority order
-1. GPTQ/MR-GPTQ-style W4 weight quant
-2. Four-Over-Six / ScaleSweep objective for weight + activation scales
-3. Saliency-aware SVD / QERA instead of plain SVD
-4. ARCQuant-style residual-channel alternative
-5. GSM8K checkpointed 200-question run
-6. Comparison table vs ARCQuant, Four Over Six, ScaleSweep, SERQ, QuaRot, SpinQuant, FlatQuant
-7. B200 / TRT-LLM kernel plan
+**Why it doesn't make the stack:** once eq + SVD + QJL are present, the
+**additive SVD side-channel already drains the outlier-block pond** the Hadamard
+targets — zero marginal gain. Another instance of the project's central thesis:
+*additive correction subsumes basis/scaling tricks under microscaling.* A
+publishable negative, not a disappointment.
 
-**Bottom line:** the activation result is already strong. The biggest unlock is **making W4 stop destroying the model**. Fix W4 → real W4A4KV4 thesis (GPTQ/AWQ/MR-GPTQ W4 + near-FP8 A4 + OmniStack KV4).
+**Caveats:** composed test used the deployable always-rotate; composed best-of
+(the ceiling) was killed to save box time and isn't directly deployable anyway
+(per-block choice breaks a uniform GEMM — would need a fixed per-position pattern
+decided offline). Fake-quant Hadamard is slow in sim (~370s/mode); irrelevant on
+real HW (multiply-free).
+
+---
+
+## RESOLVED — channel-level redistribution is redundant (a law, shown 3 ways)
+
+**All "change-the-basis / regroup-channels" tricks collapse to the control once
+equalization + additive side-channels are in place** (Llama-3.1-8B, full
+WikiText-2; control `eqzp_svd_qjl` = 6.057):
+
+| Lever | PPL | vs control |
+|---|---|---|
+| Hadamard always-rotate | 6.050 | wash |
+| Hadamard fixed-mask (deployable) | 6.052 | wash |
+| channel permutation (`cperm`) | 6.051 | wash |
+
+This is one **robust law**, not three negatives: *under per-16 microscaling with
+equalization, channel redistribution has nothing left to do — only additive
+side-channels (SVD, QJL, low-rank weight correction) move PPL.* It mirrors the
+earlier PolarQuant / rotation / GPTQ / AWQ redundancy results — same mechanism,
+now airtight via three independent confirmations. **Publishable as a clean claim.**
+
+Free side-finding (a unit test caught it before any box spend): naive
+magnitude-sort permutation can *hurt* (+14% on abundant high-variance channels —
+grouping them raises block maxima); only outlier-channel *isolation* helps, and
+equalization already does that. The channel-regroup family is **closed**.
+
+## RESOLVED — output-weighted scale selection is redundant too (the law, 3rd family)
+`oda` (`nvfp4_eqzp_svd_qjl_oda`): pick the base block scale by `min (x−Q)ᵀdiag(WWᵀ)(x−Q)`
+(downstream-sensitivity-weighted) instead of plain MSE. **Tested 8B: 6.052 vs 6.050 control = wash.**
+The additive SVD+QJL side-channel absorbs the base-quant objective, so input-MSE vs output-weighted-MSE
+doesn't matter. This is the **third independent family** to fall to the same law (after basis-change
+rotation/WHT and channel-regroup permutation): *once additive correction is in place, refinements to the
+base quantizer are redundant.* Gates the rest of the math survey — rank-allocation-by-output-error,
+Wiener shrinkage, James-Stein all rest on this now-falsified premise → not pursued.
+
+## The floor is PROVEN, not assumed (rounding-ceiling analysis, real 8B)
+Tested computation-aware rounding (minimize output error `(x-q)ᵀG(x-q)`, G=WᵀW, vs
+nearest) on **real captured Llama-8B activations**, at block widths 16/128/256/full,
+±SVD. Real aggregate (output-error reduction vs nearest):
+
+| | reduction |
+|---|---|
+| nearest + SVD (our stack) | +50.5% |
+| G16 + SVD (within-block, "OBR") | +50.2% — **dead** |
+| G128 + SVD | +49.4% |
+| G256 + SVD | +49.2% |
+| full-G + SVD (serial) | +68.4% |
+
+Three facts: (1) within-block coordinated rounding is **inert** — additive SVD already
+has it. (2) A real ceiling **exists** (full-G cuts our-stack error +36%) — but it's
+**long-range**, captured by *no* block width, so reachable only via full serial
+4096-channel rounding = **3–50× latency, not Pareto-viable**. (3) Even that ceiling
+≈ **6.00 PPL, still above FP8 (5.948)** — dominated even if you paid the latency.
+**A4 = 6.050 is the practical floor**; the additive side-channel captures all
+parallel-deployable structure. Tooling: `capture_activations.py` + `analyze_rounding_ceiling.py`.
+
+## The codec-trick space is exhausted — pivot to the paper
+Three trick families ruled out (basis / regroup / scale-objective), plus the earlier
+PolarQuant/rotation/GPTQ/AWQ redundancies. Everything left that could beat the current numbers
+**breaks a premise**: light fine-tuning (not calibration-free) or lattice/trellis (leaves E2M1).
+The contribution is the **mechanism**, and it's now exceptionally well-supported. Next work is
+**breadth + baselines + composition + theory** (see "Path to publication"), not more codec tricks.
+
+## Levers that break a premise (bigger gains, different paper)
+- **Light fine-tuning** (LoRA on the correction) — likely ~FP8 parity, but not
+  calibration-free; becomes per-model bespoke.
+- **Lattice/trellis quant (QuIP#/QTIP)** — rate-distortion-optimal, but leaves the
+  hardware-native E2M1 grid.
+
+---
+
+## Path to publication (none of this requires beating 6.294)
+The contribution is the **mechanism** (microscaling redundancy + additive
+correction + per-block local basis), not the absolute number.
+
+**Non-negotiables:**
+1. **Breadth** — 3–4 models across sizes (Llama-3.2-1B/3B, 8B) and families
+   (Qwen2.5, Mistral, Gemma-2). Small models run on **free tier** (fake-quant
+   sim, fits 16 GB).
+2. **Full downstream suite** — MMLU, HellaSwag, ARC-C, WinoGrande, GSM8K (full
+   1319), + C4 PPL. (The 30-q GSM8K was only a collapse check.)
+3. **Head-to-head baselines** — QuaRot, SpinQuant, Atom, NVFP4-specific
+   (ARCQuant, Four-Over-Six, ScaleSweep).
+
+**Completeness / elevation:**
+4. **W4A4KV4 composition** — combine W4 + A4 + OmniStack KV4 and measure (the
+   "4-bit everything" headline; never run together yet).
+5. **Real B200 throughput** (MLSys) or a rigorous roofline (ML venue).
+6. **Theory** — ✅ DONE, see [THEORY.md](THEORY.md). Two-lever theorem: under
+   microscaling + the high-resolution error model, output distortion is minimized by
+   (i) optimal diagonal preconditioning (equalization) + (v) additive low-rank
+   residual correction; orthogonal/permutation transforms, scale-objective changes,
+   and coordinated rounding are provably redundant (the Gaussian fixed point of
+   rotation + R-D optimality of the KLT residual). Predicts all ~11 experiments.
+
+**Framing fix:** call it **light-calibration PTQ**, not calibration-free (we use
+a few wikitext-train windows for eq scales and GPTQ Hessians).
+
+**Venue fit:** TMLR (values honest, thorough work incl. the negative results) or
+NeurIPS/ICML (needs breadth + baselines + theory); MLSys needs real kernels.
+
+## Compute strategy (out of personal GPU budget)
+- Small-model accuracy sims (breadth + tasks) on **Kaggle/Colab free tier** —
+  fills the biggest publication gap for $0.
+- Sponsorship for 8B/70B + B200: **NVIDIA Inception** / email the **ModelOpt /
+  TensorRT-LLM team** (this work validates NVFP4 — you do their marketing),
+  **ML Collective** (independent researchers), **Hugging Face** grants.
+- The result + clean repo is what unlocks these — write the draft first.
+
+---
+
+## Archived: original paper-survey roadmap
+The original literature survey (ARCQuant, Four-Over-Six, ScaleSweep, RaZeR,
+SmoothQuant, QuaRot, SpinQuant, FlatQuant, SERQ/LQER/QERA, GPTQ/AWQ/MR-GPTQ,
+Atom, QJL/TurboQuant/PolarQuant) and the original phase plan lived here. Most
+phases executed: GPTQ/AWQ (redundant), low-rank correction (works), optclip/zp
+(works), oda built, rank allocation (worse), joint W+A (no signal). The
+remaining unexecuted survey item worth revisiting is **RaZeR redundant-zero
+remapping** (a cheaper best-of-two zero-point). See git history for the full
+original text.

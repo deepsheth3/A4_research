@@ -1,0 +1,43 @@
+{
+  "model": "Qwen/Qwen2.5-7B",
+  "config": {
+    "model": "Qwen/Qwen2.5-7B",
+    "max_len": 1024,
+    "stride": 512,
+    "limit": 0,
+    "qjl_block": 128,
+    "qjl_dim": 64,
+    "w4": false,
+    "w4_gptq": false,
+    "awq": false,
+    "w4_lowrank": false,
+    "w4_rank_div": 16,
+    "w4_lowrank_fp8": false,
+    "w4_lowrank_fp4": false,
+    "w4_rank_alloc": false,
+    "modes": [
+      "fp16",
+      "fp8",
+      "nvfp4_raw",
+      "nvfp4_eqzp_svd_qjl"
+    ]
+  },
+  "results": {
+    "fp16": {
+      "perplexity": 6.512026309967041,
+      "seconds": 20.0
+    },
+    "fp8": {
+      "perplexity": 6.542229175567627,
+      "seconds": 58.7
+    },
+    "nvfp4_raw": {
+      "perplexity": 6.825639247894287,
+      "seconds": 57.2
+    },
+    "nvfp4_eqzp_svd_qjl": {
+      "perplexity": 6.598147869110107,
+      "seconds": 357.5
+    }
+  }
+}

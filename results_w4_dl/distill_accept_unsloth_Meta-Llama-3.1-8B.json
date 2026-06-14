@@ -1,0 +1,26 @@
+{
+  "svd": {
+    "ppl": 6.3641,
+    "alpha": 0.889,
+    "greedy": 0.8725,
+    "accept_tokens": 9207,
+    "exp_len": 4.007,
+    "speedup": 2.862
+  },
+  "distilled": {
+    "ppl": 6.3624,
+    "alpha": 0.8902,
+    "greedy": 0.8725,
+    "accept_tokens": 9207,
+    "exp_len": 4.016,
+    "speedup": 2.869
+  },
+  "_meta": {
+    "seconds": 926.1,
+    "rank_div": 6,
+    "epochs": 1,
+    "lr": 0.002,
+    "kv4": true,
+    "gamma": 4
+  }
+}

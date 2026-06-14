@@ -1,0 +1,43 @@
+{
+  "model": "unsloth/Llama-3.2-1B",
+  "config": {
+    "model": "unsloth/Llama-3.2-1B",
+    "max_len": 1024,
+    "stride": 512,
+    "limit": 0,
+    "qjl_block": 128,
+    "qjl_dim": 64,
+    "w4": false,
+    "w4_gptq": false,
+    "awq": false,
+    "w4_lowrank": false,
+    "w4_rank_div": 16,
+    "w4_lowrank_fp8": false,
+    "w4_lowrank_fp4": false,
+    "w4_rank_alloc": false,
+    "modes": [
+      "fp16",
+      "fp8",
+      "nvfp4_raw",
+      "nvfp4_eqzp_svd_qjl"
+    ]
+  },
+  "results": {
+    "fp16": {
+      "perplexity": 9.282968521118164,
+      "seconds": 5.9
+    },
+    "fp8": {
+      "perplexity": 9.34030818939209,
+      "seconds": 18.0
+    },
+    "nvfp4_raw": {
+      "perplexity": 10.0180025100708,
+      "seconds": 23.2
+    },
+    "nvfp4_eqzp_svd_qjl": {
+      "perplexity": 9.698559761047363,
+      "seconds": 105.6
+    }
+  }
+}

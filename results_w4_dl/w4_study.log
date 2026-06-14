@@ -1,0 +1,22 @@
+model=unsloth/Meta-Llama-3.1-8B  (A4 control ~6.050, current best W4A4 uniform-in/8 ~6.294, fp8 5.948)
+==================== anchors: fp16 / fp8 / A4 ====================
+test tokens: 289077
+  fp16         PPL =    5.919   (21.0s)
+  fp8          PPL =    5.948   (61.8s)
+  nvfp4_eqzp_svd_qjl PPL =    6.051   (369.6s)
+==================== W4A4 uniform in/8 (control) ====================
+test tokens: 289077
+  collecting weight Hessians (offline)... done (225 layers, 32 windows, 14.4s)
+  nvfp4_eqzp_svd_qjl PPL =    6.292   (371.3s)
+==================== W4A4 uniform in/6 (more rank) ====================
+test tokens: 289077
+  collecting weight Hessians (offline)... done (225 layers, 32 windows, 14.4s)
+  nvfp4_eqzp_svd_qjl PPL =    6.258   (369.7s)
+==================== W4A4 Fisher-alloc in/8 (new alloc) ====================
+test tokens: 289077
+  collecting weight Hessians (offline)... done (225 layers, 32 windows, 14.4s)
+  collecting Fisher sensitivities (offline backprop)... done (225 layers, 8 windows, 1.4s)
+  GPTQ+lowrank ALLOC (budget in/8, fp8=True)... done (225 layers, ranks 16-4096, 360.4s)
+  nvfp4_eqzp_svd_qjl PPL =    6.314   (371.6s)
+==================== SUMMARY ====================
+DONE. Best W4 config -> use it in run_w4a4kv4.sh. Copy results/ off.

@@ -1,0 +1,46 @@
+device=cuda dtype=torch.float16 model=unsloth/Meta-Llama-3.1-8B
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
+test tokens: 289077
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:  10%|▉         | 29/291 [00:00<00:00, 267.24it/s]Loading weights:  23%|██▎       | 67/291 [00:00<00:00, 320.20it/s]Loading weights:  38%|███▊      | 112/291 [00:00<00:00, 317.79it/s]Loading weights:  52%|█████▏    | 150/291 [00:00<00:00, 334.11it/s]Loading weights:  66%|██████▋   | 193/291 [00:00<00:00, 364.82it/s]Loading weights:  79%|███████▉  | 230/291 [00:00<00:00, 360.89it/s]Loading weights:  92%|█████████▏| 267/291 [00:00<00:00, 357.53it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 364.86it/s]
+  calibrating per-channel eq scales (offline)... done (225 layers, 5.4s)
+  collecting weight Hessians (offline)... done (225 layers, 32 windows, 14.4s)
+  computing SVD warm-start factors...
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   0%|          | 1/291 [00:00<01:02,  4.64it/s]Loading weights:  11%|█▏        | 33/291 [00:00<00:02, 128.74it/s]Loading weights:  23%|██▎       | 67/291 [00:00<00:01, 197.42it/s]Loading weights:  32%|███▏      | 94/291 [00:00<00:01, 182.50it/s]Loading weights:  40%|███▉      | 116/291 [00:00<00:00, 192.61it/s]Loading weights:  47%|████▋     | 138/291 [00:00<00:00, 191.97it/s]Loading weights:  55%|█████▍    | 159/291 [00:00<00:00, 159.33it/s]Loading weights:  61%|██████    | 177/291 [00:01<00:00, 164.37it/s]Loading weights:  69%|██████▉   | 202/291 [00:01<00:00, 180.60it/s]Loading weights:  76%|███████▋  | 222/291 [00:01<00:00, 174.67it/s]Loading weights:  88%|████████▊ | 256/291 [00:01<00:00, 213.44it/s]Loading weights:  96%|█████████▌| 280/291 [00:01<00:00, 216.75it/s]Loading weights: 100%|██████████| 291/291 [00:01<00:00, 187.22it/s]
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   5%|▌         | 15/291 [00:00<00:02, 111.02it/s]Loading weights:  17%|█▋        | 49/291 [00:00<00:01, 228.60it/s]Loading weights:  30%|██▉       | 87/291 [00:00<00:00, 292.11it/s]Loading weights:  45%|████▌     | 132/291 [00:00<00:00, 343.03it/s]Loading weights:  60%|██████    | 175/291 [00:00<00:00, 371.46it/s]Loading weights:  73%|███████▎  | 213/291 [00:00<00:00, 366.45it/s]Loading weights:  88%|████████▊ | 256/291 [00:00<00:00, 386.11it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 365.65it/s]
+  precomputing per-layer aux (offline)... done (225 layers, 14.7s)
+  SVD baseline: {'ppl': 6.3641, 'alpha': 0.889, 'greedy': 0.8725, 'accept_tokens': 9207}
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   5%|▍         | 14/291 [00:00<00:02, 130.02it/s]Loading weights:  20%|█▉        | 58/291 [00:00<00:00, 303.54it/s]Loading weights:  33%|███▎      | 96/291 [00:00<00:00, 330.80it/s]Loading weights:  48%|████▊     | 140/291 [00:00<00:00, 371.06it/s]Loading weights:  62%|██████▏   | 180/291 [00:00<00:00, 379.29it/s]Loading weights:  76%|███████▌  | 220/291 [00:00<00:00, 381.65it/s]Loading weights:  91%|█████████ | 264/291 [00:00<00:00, 397.96it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 363.48it/s]
+  distill step 50: KL = nan
+  [distilled] distill KL 13.0607 -> nan (60 steps)
+  precomputing per-layer aux (offline)... done (225 layers, 14.7s)
+  Distilled:    {'ppl': 6.3624, 'alpha': 0.8902, 'greedy': 0.8725, 'accept_tokens': 9207}
+
+==== RESULT ====
+{
+  "svd": {
+    "ppl": 6.3641,
+    "alpha": 0.889,
+    "greedy": 0.8725,
+    "accept_tokens": 9207,
+    "exp_len": 4.007,
+    "speedup": 2.862
+  },
+  "distilled": {
+    "ppl": 6.3624,
+    "alpha": 0.8902,
+    "greedy": 0.8725,
+    "accept_tokens": 9207,
+    "exp_len": 4.016,
+    "speedup": 2.869
+  },
+  "_meta": {
+    "seconds": 926.1,
+    "rank_div": 6,
+    "epochs": 1,
+    "lr": 0.002,
+    "kv4": true,
+    "gamma": 4
+  }
+}
+wrote /root/proj/NVFP4_Research/results/distill_accept_unsloth_Meta-Llama-3.1-8B.json
