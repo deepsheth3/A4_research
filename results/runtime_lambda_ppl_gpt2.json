@@ -1,0 +1,31 @@
+{
+  "model": "gpt2",
+  "config": {
+    "model": "gpt2",
+    "max_len": 256,
+    "stride": 256,
+    "limit": 1500,
+    "ood_file": null,
+    "decay": 0.98,
+    "qjl_block": 128,
+    "qjl_dim": 64,
+    "w4": false,
+    "kv4": false
+  },
+  "fp16": {
+    "indist_wikitext": 51.3468,
+    "ood_code": 9.1334
+  },
+  "frozen": {
+    "indist_wikitext": 52.8366,
+    "ood_code": 9.5241
+  },
+  "adaptive": {
+    "indist_wikitext": 52.3118,
+    "ood_code": 9.274
+  },
+  "claim": {
+    "indist_delta_adaptive_minus_frozen": -0.5248,
+    "ood_delta_adaptive_minus_frozen": -0.2501
+  }
+}

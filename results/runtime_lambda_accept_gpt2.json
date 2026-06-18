@@ -1,0 +1,33 @@
+{
+  "model": "gpt2",
+  "decay": 0.98,
+  "max_pos": 160,
+  "qjl_block": 128,
+  "qjl_dim": 64,
+  "prompts": {
+    "ood_code": {
+      "T": 159,
+      "mean_alpha_frozen": 0.90075,
+      "mean_alpha_adaptive": 0.89738,
+      "mean_alpha_delta": -0.00336,
+      "mean_greedy_frozen": 0.85535,
+      "mean_greedy_adaptive": 0.83648,
+      "max_drawdown": 0.47322,
+      "max_drawdown_pos": 21,
+      "self_heal_pos": 159,
+      "drawdown_eps": 0.005
+    },
+    "control_prose": {
+      "T": 113,
+      "mean_alpha_frozen": 0.91072,
+      "mean_alpha_adaptive": 0.92104,
+      "mean_alpha_delta": 0.01033,
+      "mean_greedy_frozen": 0.88496,
+      "mean_greedy_adaptive": 0.9469,
+      "max_drawdown": 0.06473,
+      "max_drawdown_pos": 98,
+      "self_heal_pos": 111,
+      "drawdown_eps": 0.005
+    }
+  }
+}
