@@ -130,20 +130,25 @@ def main():
     ap.add_argument("--n-val", type=int, default=8, help="held-out windows")
     ap.add_argument("--eval-every", type=int, default=20)
     ap.add_argument("--grad-clip", type=float, default=1.0)
+    ap.add_argument("--prox", type=float, default=0.0,
+                    help="proximal reg toward SVD init ||B-B_svd||^2 (training stability)")
+    ap.add_argument("--bf16", action="store_true",
+                    help="bf16 (stable like fp32, half memory -> enables 2048-ctx training)")
     ap.add_argument("--eval-ppl", action="store_true", help="final W4A4 PPL: SVD-init vs trained")
     ap.add_argument("--full-stack", action="store_true", help="eval on full stack: +QJL +KV4")
     ap.add_argument("--cosine", action="store_true", help="cosine lr decay for a stable climb")
     ap.add_argument("--qjl-dim", type=int, default=64)
-    ap.add_argument("--eval-len", type=int, default=0, help="PPL eval context (0=max_len)")
-    ap.add_argument("--limit", type=int, default=20000)
+    ap.add_argument("--eval-ctxs", default="512,2048",
+                    help="comma list of eval contexts; SAME basis is scored at each")
+    ap.add_argument("--limit", type=int, default=40000)
     args = ap.parse_args()
-    args.eval_len = args.eval_len or args.max_len
 
     from datasets import load_dataset
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     if torch.cuda.is_available():
-        device, dtype = "cuda", torch.float32     # fp32: training stability (fp16 NaNs)
+        device = "cuda"
+        dtype = torch.bfloat16 if args.bf16 else torch.float32   # bf16 stable + half mem
     elif torch.backends.mps.is_available():
         device, dtype = "mps", torch.float32
     else:
@@ -203,6 +208,9 @@ def main():
             if step >= args.steps:
                 break
             loss = kl_distill_loss(student(x).logits, teacher(x).logits)
+            if args.prox:                                        # keep bases near SVD (stability)
+                loss = loss + args.prox * sum(
+                    ((p - svd_init[i]) ** 2).sum() for i, p in bases.items())
             opt.zero_grad(set_to_none=True)
             loss.backward()
             if args.grad_clip:
@@ -242,25 +250,31 @@ def main():
     if args.eval_ppl:
         for h in handles:
             h.remove()
+        torch.save({i: best_state[i].cpu() for i in best_state},   # checkpoint the basis
+                   RESULTS / f"distill_bases_{args.model.replace('/', '_')}.pt")
         test = load_dataset("Salesforce/wikitext", "wikitext-2-raw-v1", split="test")
         tids = tok("\n\n".join(test["text"]), return_tensors="pt").input_ids[:, : args.limit]
         codec = TurboQuantActQuantizer(
             TurboQuantConfig(qjl_dim=args.qjl_dim if args.full_stack else 0))
         stack = "W4A4KV4+QJL" if args.full_stack else "W4A4"
-        for name, src in (("svd", svd_init), ("trained", best_state)):
-            for i, p in bases.items():
-                p.data.copy_(src[i])
-            if args.full_stack:
-                hs = _install_full(student, bases, eq, codec) + install_kv_hooks(student, 16)
-            else:
-                hs = _install(student, bases, eq)
-            out[f"ppl_{name}"] = round(perplexity(student, tids, args.eval_len, args.eval_len, device), 4)
-            for h in hs:
-                h.remove()
-            print(f"  {stack} PPL ({name}-basis) = {out[f'ppl_{name}']:.4f}")
         out["eval_stack"] = stack
-        out["ppl_improvement"] = round(out["ppl_svd"] - out["ppl_trained"], 4)
-        print(f"  PPL improvement (svd - trained) = {out['ppl_improvement']:+.4f}  [{stack}]")
+        out["ppl"] = {}
+        for ctx in (int(c) for c in args.eval_ctxs.split(",")):
+            row = {}
+            for name, src in (("svd", svd_init), ("trained", best_state)):
+                for i, p in bases.items():
+                    p.data.copy_(src[i])
+                if args.full_stack:
+                    hs = _install_full(student, bases, eq, codec) + install_kv_hooks(student, 16)
+                else:
+                    hs = _install(student, bases, eq)
+                row[name] = round(perplexity(student, tids, ctx, ctx, device), 4)
+                for h in hs:
+                    h.remove()
+            row["improvement"] = round(row["svd"] - row["trained"], 4)
+            out["ppl"][f"ctx{ctx}"] = row
+            print(f"  ctx{ctx:5d} [{stack}]  svd {row['svd']:.4f}  trained {row['trained']:.4f}"
+                  f"  delta {row['improvement']:+.4f}  (SAME basis)", flush=True)
 
     RESULTS.mkdir(exist_ok=True)
     path = RESULTS / f"activation_distill_{args.model.replace('/', '_')}.json"
