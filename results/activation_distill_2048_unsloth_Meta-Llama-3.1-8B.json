@@ -1,0 +1,15 @@
+{
+  "model": "unsloth/Meta-Llama-3.1-8B",
+  "w4": true,
+  "steps": 300,
+  "best_val_kl": 0.13489,
+  "seconds": 316.1,
+  "svd_init_val_kl": 0.13628,
+  "trained_val_kl": 0.13489,
+  "kl_improvement": 0.00139,
+  "verdict": "LAND \u2014 trained beats SVD",
+  "ppl_svd": 7.225,
+  "ppl_trained": 7.2159,
+  "eval_stack": "W4A4KV4+QJL",
+  "ppl_improvement": 0.0091
+}

@@ -134,8 +134,10 @@ def main():
     ap.add_argument("--full-stack", action="store_true", help="eval on full stack: +QJL +KV4")
     ap.add_argument("--cosine", action="store_true", help="cosine lr decay for a stable climb")
     ap.add_argument("--qjl-dim", type=int, default=64)
+    ap.add_argument("--eval-len", type=int, default=0, help="PPL eval context (0=max_len)")
     ap.add_argument("--limit", type=int, default=20000)
     args = ap.parse_args()
+    args.eval_len = args.eval_len or args.max_len
 
     from datasets import load_dataset
     from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -252,7 +254,7 @@ def main():
                 hs = _install_full(student, bases, eq, codec) + install_kv_hooks(student, 16)
             else:
                 hs = _install(student, bases, eq)
-            out[f"ppl_{name}"] = round(perplexity(student, tids, args.max_len, args.max_len, device), 4)
+            out[f"ppl_{name}"] = round(perplexity(student, tids, args.eval_len, args.eval_len, device), 4)
             for h in hs:
                 h.remove()
             print(f"  {stack} PPL ({name}-basis) = {out[f'ppl_{name}']:.4f}")
