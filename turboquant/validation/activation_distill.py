@@ -35,9 +35,11 @@ import torch.nn as nn
 from turboquant.nvfp4 import nvfp4_quantize_zp, round_e4m3
 from turboquant.distill import kl_distill_loss
 from turboquant.validation.hf_perplexity import (
-    _is_linear, _precompute_aux, perplexity, quantize_weights_nvfp4,
+    _is_linear, _precompute_aux, perplexity, quantize_weights_nvfp4, install_kv_hooks,
 )
 from turboquant.validation.runtime_lambda_accept import calibrate_eq_full
+from turboquant.act_codec import TurboQuantActQuantizer
+from turboquant.config import TurboQuantConfig
 
 RESULTS = Path(__file__).resolve().parents[2] / "results"
 
@@ -57,6 +59,38 @@ def _correct(x, s, basis, mx_block=16):
     coeff = coeff + (coeff_q - coeff).detach()               # straight-through fp8
     xh = base + coeff @ basis.T
     return xh * s
+
+
+@torch.no_grad()
+def _correct_full(x, s, basis, codec, layer, mx_block=16):
+    """Deployed-stack correction for EVAL: eq -> base -> basis -> per-block QJL."""
+    xe = x / s
+    base = nvfp4_quantize_zp(xe, block=mx_block, optclip=True)
+    coeff = (xe - base) @ basis
+    cs = coeff.abs().amax(dim=-1, keepdim=True).clamp_min(1e-12) / 448.0
+    coeff = round_e4m3(coeff / cs) * cs
+    xh = base + coeff @ basis.T
+    if codec.cfg.qjl_dim > 0:
+        xh = xh + codec.qjl_correct(xe - xh, layer)
+    return xh * s
+
+
+def _install_full(model, bases, eq, codec, mx_block=16):
+    """Full-stack (basis + QJL) eval hooks; caller adds KV4 separately."""
+    handles = []
+    for i, m in enumerate(mod for mod in model.modules() if _is_linear(mod)):
+        if i not in bases:
+            continue
+        def mk(idx):
+            def hook(module, args):
+                x = args[0]
+                if x.shape[-1] % mx_block:
+                    return None
+                xq = _correct_full(x.float(), eq[idx], bases[idx], codec, idx, mx_block).to(x.dtype)
+                return (xq, *args[1:])
+            return hook
+        handles.append(m.register_forward_pre_hook(mk(i)))
+    return handles
 
 
 def _install(model, bases, eq, mx_block=16):
@@ -97,6 +131,9 @@ def main():
     ap.add_argument("--eval-every", type=int, default=20)
     ap.add_argument("--grad-clip", type=float, default=1.0)
     ap.add_argument("--eval-ppl", action="store_true", help="final W4A4 PPL: SVD-init vs trained")
+    ap.add_argument("--full-stack", action="store_true", help="eval on full stack: +QJL +KV4")
+    ap.add_argument("--cosine", action="store_true", help="cosine lr decay for a stable climb")
+    ap.add_argument("--qjl-dim", type=int, default=64)
     ap.add_argument("--limit", type=int, default=20000)
     args = ap.parse_args()
 
@@ -156,6 +193,8 @@ def main():
     print(f"  SVD-init held-out KL = {best:.5f}")
 
     step = 0
+    sched = (torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.steps)
+             if args.cosine else None)
     t0 = time.time()
     while step < args.steps:
         for x in train_b:
@@ -167,6 +206,8 @@ def main():
             if args.grad_clip:
                 torch.nn.utils.clip_grad_norm_(params, args.grad_clip)
             opt.step()
+            if sched:
+                sched.step()
             step += 1
             if step % args.eval_every == 0:
                 v = _val_kl(student, teacher, val_b, None, None)
@@ -201,16 +242,23 @@ def main():
             h.remove()
         test = load_dataset("Salesforce/wikitext", "wikitext-2-raw-v1", split="test")
         tids = tok("\n\n".join(test["text"]), return_tensors="pt").input_ids[:, : args.limit]
+        codec = TurboQuantActQuantizer(
+            TurboQuantConfig(qjl_dim=args.qjl_dim if args.full_stack else 0))
+        stack = "W4A4KV4+QJL" if args.full_stack else "W4A4"
         for name, src in (("svd", svd_init), ("trained", best_state)):
             for i, p in bases.items():
                 p.data.copy_(src[i])
-            hs = _install(student, bases, eq)
+            if args.full_stack:
+                hs = _install_full(student, bases, eq, codec) + install_kv_hooks(student, 16)
+            else:
+                hs = _install(student, bases, eq)
             out[f"ppl_{name}"] = round(perplexity(student, tids, args.max_len, args.max_len, device), 4)
             for h in hs:
                 h.remove()
-            print(f"  W4A4 PPL ({name}-basis) = {out[f'ppl_{name}']:.4f}")
+            print(f"  {stack} PPL ({name}-basis) = {out[f'ppl_{name}']:.4f}")
+        out["eval_stack"] = stack
         out["ppl_improvement"] = round(out["ppl_svd"] - out["ppl_trained"], 4)
-        print(f"  PPL improvement (svd - trained) = {out['ppl_improvement']:+.4f}")
+        print(f"  PPL improvement (svd - trained) = {out['ppl_improvement']:+.4f}  [{stack}]")
 
     RESULTS.mkdir(exist_ok=True)
     path = RESULTS / f"activation_distill_{args.model.replace('/', '_')}.json"
