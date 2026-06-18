@@ -1,0 +1,11 @@
+{
+  "model": "unsloth/Meta-Llama-3.1-8B",
+  "rank_div": 6,
+  "alpha_1_minus_TV": 0.8955,
+  "greedy_agreement": 0.8814,
+  "gamma": 4,
+  "cost_ratio": 0.3,
+  "expected_accepted_len": 4.059,
+  "projected_speedup": 1.845,
+  "seconds": 13.7
+}
