@@ -1,0 +1,31 @@
+{
+  "model": "unsloth/Meta-Llama-3.1-8B",
+  "config": {
+    "model": "unsloth/Meta-Llama-3.1-8B",
+    "max_len": 2048,
+    "stride": 2048,
+    "limit": 30000,
+    "ood_file": "ood_math.txt",
+    "decay": 0.98,
+    "qjl_block": 128,
+    "qjl_dim": 64,
+    "w4": true,
+    "kv4": true
+  },
+  "fp16": {
+    "indist_wikitext": 6.2293,
+    "ood_code": 3.1766
+  },
+  "frozen": {
+    "indist_wikitext": 7.0713,
+    "ood_code": 3.369
+  },
+  "adaptive": {
+    "indist_wikitext": 7.0726,
+    "ood_code": 3.3628
+  },
+  "claim": {
+    "indist_delta_adaptive_minus_frozen": 0.0013,
+    "ood_delta_adaptive_minus_frozen": -0.0062
+  }
+}
