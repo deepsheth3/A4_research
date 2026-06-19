@@ -1,0 +1,22 @@
+{
+  "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "w4a4": true,
+  "steps": 800,
+  "lr": 2e-05,
+  "fp16_ppl": 9.3576,
+  "ptq": {
+    "ppl": 10.7337,
+    "alpha": 0.8249,
+    "greedy": 0.8006
+  },
+  "train_seconds": 160.9,
+  "qat": {
+    "ppl": 9.8746,
+    "alpha": 0.8523,
+    "greedy": 0.8249
+  },
+  "ppl_recovered": 0.8591,
+  "alpha_gain": 0.0274,
+  "gap_closed_frac": 0.624,
+  "verdict": "QAT WINS \u2014 recovers the PTQ gap"
+}
