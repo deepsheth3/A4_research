@@ -1,0 +1,21 @@
+{
+  "orig_fp16": {
+    "wiki": 9.3576,
+    "ood": 4.0298
+  },
+  "orig_w4a4": {
+    "wiki": 10.7337,
+    "ood": 4.3661
+  },
+  "qat_fp16": {
+    "wiki": 9.4633,
+    "ood": 4.0568
+  },
+  "qat_w4a4": {
+    "wiki": 9.7678,
+    "ood": 4.2504
+  },
+  "w4a4_wiki_gain": 0.9659,
+  "w4a4_ood_gain": 0.1157,
+  "verdict": "GENERALIZES \u2014 QAT-W4A4 beats orig-W4A4 on OOD too"
+}
