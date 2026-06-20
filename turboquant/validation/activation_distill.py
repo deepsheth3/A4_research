@@ -119,6 +119,16 @@ def _val_kl(student, teacher, batches, sh, th):
     return tot / max(len(batches), 1)
 
 
+@torch.no_grad()
+def _val_loss(model, batches):
+    """Mean LM cross-entropy on held-out windows — the actual deploy metric (PPL).
+    We select snapshots on THIS, not KL-to-teacher, which we found mis-ranks bases."""
+    tot = 0.0
+    for x in batches:
+        tot += model(x, labels=x).loss.item()
+    return tot / max(len(batches), 1)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="gpt2")
@@ -194,10 +204,10 @@ def main():
     params = list(bases.values())
     opt = torch.optim.Adam(params, lr=args.lr)
 
-    # baseline = SVD-init held-out KL (monotone-safe floor)
-    best = _val_kl(student, teacher, val_b, None, None)
+    # baseline = SVD-init held-out LM-loss (selection metric = the deploy metric)
+    best = _val_loss(student, val_b)
     best_state = {i: p.detach().clone() for i, p in bases.items()}
-    print(f"  SVD-init held-out KL = {best:.5f}")
+    print(f"  SVD-init held-out loss = {best:.5f}")
 
     step = 0
     sched = (torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.steps)
@@ -220,12 +230,12 @@ def main():
                 sched.step()
             step += 1
             if step % args.eval_every == 0:
-                v = _val_kl(student, teacher, val_b, None, None)
+                v = _val_loss(student, val_b)                    # select on PPL metric
                 tag = ""
                 if v < best:
                     best, tag = v, "  <- best (kept)"
                     best_state = {i: p.detach().clone() for i, p in bases.items()}
-                print(f"  step {step:4d}  train KL {loss.item():.5f}  val KL {v:.5f}{tag}",
+                print(f"  step {step:4d}  train KL {loss.item():.5f}  val loss {v:.5f}{tag}",
                       flush=True)
     for i, p in bases.items():                                # restore best
         p.data.copy_(best_state[i])

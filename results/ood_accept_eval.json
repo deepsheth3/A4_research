@@ -1,0 +1,10 @@
+{
+  "target": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "gamma": 4, "cost_ratio": 0.3,
+  "drafts": {
+    "orig": {"wiki": {"alpha": 0.8273, "speedup": 1.612}, "ood_gsm8k": {"alpha": 0.8671, "speedup": 1.744}},
+    "kl":   {"wiki": {"alpha": 0.8702, "speedup": 1.755}, "ood_gsm8k": {"alpha": 0.8740, "speedup": 1.768}},
+    "kltv": {"wiki": {"alpha": 0.8714, "speedup": 1.759}, "ood_gsm8k": {"alpha": 0.8789, "speedup": 1.785}}
+  },
+  "note": "kltv (KL+TV acceptance blend) > kl (pure KL-QAT) on BOTH wiki and OOD; margin larger OOD (+0.0049 vs +0.0012)"
+}

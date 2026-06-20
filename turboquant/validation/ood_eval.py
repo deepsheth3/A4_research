@@ -1,14 +1,13 @@
-"""Does NVFP4-QAT generalize, or just overfit WikiText?
+"""Acceptance-first eval: does QAT raise spec-decode ACCEPTANCE, in-dist AND OOD?
 
-Plain W4A4 perplexity of the ORIGINAL vs the QAT'd model, on in-distribution
-(WikiText) AND out-of-distribution (GSM8K math). The decisive comparison:
-  orig-W4A4 vs QAT-W4A4 on OOD.
-If QAT-W4A4 beats orig-W4A4 on OOD too -> QAT generalized (the robustness we want).
-If QAT helps WikiText but HURTS OOD -> QAT overfit WikiText (the failure mode).
+Acceptance (1 - TV vs the FP16 target) is the metric that matters — it becomes
+throughput, with quality guaranteed by the verifier. We compare W4A4 drafts (original
+vs KL-QAT vs acceptance/TV-QAT) against the FP16 target, on WikiText and GSM8K (OOD).
+PPL is reported only as a sanity check.
 
 Run:
-  python -m turboquant.validation.ood_eval \
-     --orig TinyLlama/TinyLlama-1.1B-Chat-v1.0 --qat /root/A4/qat_heavy_ckpt
+  python -m turboquant.validation.ood_eval --target TinyLlama/TinyLlama-1.1B-Chat-v1.0 \
+     --drafts orig:TinyLlama/TinyLlama-1.1B-Chat-v1.0,kl:/root/A4/qat_heavy_ckpt,tv:/root/A4/qat_tv_ckpt
 """
 from __future__ import annotations
 
@@ -20,31 +19,37 @@ import torch
 
 from turboquant.validation.qat_nvfp4 import replace_linears
 from turboquant.validation.hf_perplexity import perplexity
+from turboquant.validation.acceptance import acceptance_stats, speedup
 
 RESULTS = Path(__file__).resolve().parents[2] / "results"
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--orig", default="TinyLlama/TinyLlama-1.1B-Chat-v1.0")
-    ap.add_argument("--qat", default="/root/A4/qat_heavy_ckpt")
+    ap.add_argument("--target", default="TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+    ap.add_argument("--drafts", default="orig:TinyLlama/TinyLlama-1.1B-Chat-v1.0")
     ap.add_argument("--max-len", type=int, default=1024)
     ap.add_argument("--limit", type=int, default=40000)
+    ap.add_argument("--gamma", type=int, default=4)
+    ap.add_argument("--cost-ratio", type=float, default=0.3)
     args = ap.parse_args()
 
     from datasets import load_dataset
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     device, dtype = "cuda", torch.bfloat16
-    tok = AutoTokenizer.from_pretrained(args.orig)
+    tok = AutoTokenizer.from_pretrained(args.target)
     L, lim = args.max_len, args.limit
 
     wiki = load_dataset("Salesforce/wikitext", "wikitext-2-raw-v1", split="test")
     wiki_ids = tok("\n\n".join(wiki["text"]), return_tensors="pt").input_ids[:, :lim]
     gsm = load_dataset("openai/gsm8k", "main", split="test")
-    ood_text = "\n\n".join(x["question"] + "\n" + x["answer"] for x in list(gsm)[:1500])
-    ood_ids = tok(ood_text, return_tensors="pt").input_ids[:, :lim]
-    print(f"  wiki tokens {wiki_ids.size(1)}  ood(gsm8k) tokens {ood_ids.size(1)}", flush=True)
+    ood_ids = tok("\n\n".join(x["question"] + "\n" + x["answer"] for x in list(gsm)[:1500]),
+                  return_tensors="pt").input_ids[:, :lim]
+    corpora = {"wiki": wiki_ids, "ood_gsm8k": ood_ids}
+    windows = {k: [v[:, i * L:(i + 1) * L].to(device) for i in range(v.size(1) // L)]
+               for k, v in corpora.items()}
+    print(f"  wiki {wiki_ids.size(1)} tok, ood {ood_ids.size(1)} tok", flush=True)
 
     def load(mid):
         try:
@@ -52,38 +57,40 @@ def main():
         except TypeError:
             return AutoModelForCausalLM.from_pretrained(mid, torch_dtype=dtype)
 
+    target = load(args.target).to(device).eval()
+    for p in target.parameters():
+        p.requires_grad_(False)
+    V = target.config.vocab_size
+
     @torch.no_grad()
-    def evalm(mid):
-        m = load(mid).to(device).eval()
-        fp16 = {"wiki": round(perplexity(m, wiki_ids, L, L, device), 4),
-                "ood": round(perplexity(m, ood_ids, L, L, device), 4)}
-        replace_linears(m, 16, quant_act=True)            # plain W4A4 fake-quant
-        w4 = {"wiki": round(perplexity(m, wiki_ids, L, L, device), 4),
-              "ood": round(perplexity(m, ood_ids, L, L, device), 4)}
-        del m
+    def tgt_logits(corp):                                  # cache target logits per corpus
+        return [target(x).logits[:, :-1, :].reshape(-1, V) for x in windows[corp]]
+    tgt = {c: tgt_logits(c) for c in corpora}
+
+    out = {"target": args.target, "gamma": args.gamma, "cost_ratio": args.cost_ratio, "drafts": {}}
+    for spec in args.drafts.split(","):
+        label, path = spec.split(":", 1)
+        d = load(path).to(device).eval()
+        replace_linears(d, 16, quant_act=True)            # W4A4 draft
+        row = {}
+        with torch.no_grad():
+            for c in corpora:
+                a = sum(acceptance_stats(d(x).logits[:, :-1, :].reshape(-1, V), t)[0]
+                        for x, t in zip(windows[c], tgt[c])) / len(windows[c])
+                ppl = perplexity(d, corpora[c], L, L, device)
+                row[c] = {"alpha": round(a, 4), "ppl": round(ppl, 4),
+                          "speedup": round(speedup(a, args.gamma, args.cost_ratio), 3)}
+        out["drafts"][label] = row
+        del d
         torch.cuda.empty_cache()
-        return fp16, w4
+        print(f"  [{label:5s}] wiki alpha {row['wiki']['alpha']} (spd {row['wiki']['speedup']}x) | "
+              f"ood alpha {row['ood_gsm8k']['alpha']} (spd {row['ood_gsm8k']['speedup']}x)", flush=True)
 
-    o_fp16, o_w4 = evalm(args.orig)
-    print(f"  [orig] fp16 wiki {o_fp16['wiki']} ood {o_fp16['ood']} | "
-          f"W4A4 wiki {o_w4['wiki']} ood {o_w4['ood']}", flush=True)
-    q_fp16, q_w4 = evalm(args.qat)
-    print(f"  [qat ] fp16 wiki {q_fp16['wiki']} ood {q_fp16['ood']} | "
-          f"W4A4 wiki {q_w4['wiki']} ood {q_w4['ood']}", flush=True)
-
-    out = {"orig_fp16": o_fp16, "orig_w4a4": o_w4, "qat_fp16": q_fp16, "qat_w4a4": q_w4}
-    out["w4a4_wiki_gain"] = round(o_w4["wiki"] - q_w4["wiki"], 4)   # +ve = QAT better in-dist
-    out["w4a4_ood_gain"] = round(o_w4["ood"] - q_w4["ood"], 4)      # +ve = QAT better OOD
-    verdict = ("GENERALIZES — QAT-W4A4 beats orig-W4A4 on OOD too" if out["w4a4_ood_gain"] > 0.02
-               else "OVERFIT — QAT helps WikiText but not OOD" if out["w4a4_wiki_gain"] > 0.02
-               else "no clear effect")
-    out["verdict"] = verdict
-    print(f"\n  W4A4 in-dist gain (orig-qat) = {out['w4a4_wiki_gain']:+.4f}")
-    print(f"  W4A4 OOD     gain (orig-qat) = {out['w4a4_ood_gain']:+.4f}")
-    print(f"  VERDICT: {verdict}")
-
+    print("\n  === ACCEPTANCE (W4A4 draft vs FP16 target) ===")
+    for label, row in out["drafts"].items():
+        print(f"  {label:6s}  wiki {row['wiki']['alpha']:.4f}  ood {row['ood_gsm8k']['alpha']:.4f}")
     RESULTS.mkdir(exist_ok=True)
-    p = RESULTS / "ood_eval_qat.json"
+    p = RESULTS / "ood_accept_eval.json"
     p.write_text(json.dumps(out, indent=2))
     print(f"saved -> {p}")
 

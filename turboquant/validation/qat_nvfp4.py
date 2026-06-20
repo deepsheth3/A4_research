@@ -85,9 +85,26 @@ def _eval(student, teacher, ppl_ids, accept_w, max_len, device):
     return round(ppl, 4), round(a / n, 4), round(g / n, 4)
 
 
+def tv_loss(student_logits, teacher_logits):
+    """Total-variation distillation = directly maximize spec-decode acceptance.
+    acceptance alpha = 1 - TV(student, teacher), so minimizing TV maximizes accepted
+    tokens — the exact metric that becomes throughput (vs KL which only correlates)."""
+    V = student_logits.size(-1)
+    q = F.softmax(student_logits.float().reshape(-1, V), dim=-1)
+    p = F.softmax(teacher_logits.float().reshape(-1, V), dim=-1)
+    return 0.5 * (q - p).abs().sum(-1).mean()
+
+
 @torch.no_grad()
 def _val_loss(model, batches):
     return sum(model(x, labels=x).loss.item() for x in batches) / max(len(batches), 1)
+
+
+@torch.no_grad()
+def _val_tv(student, teacher, batches):
+    """Mean TV (= 1 - acceptance) on held-out — the metric that matters, for selection."""
+    return sum(tv_loss(student(x).logits, teacher(x).logits).item()
+               for x in batches) / max(len(batches), 1)
 
 
 def main():
@@ -102,6 +119,11 @@ def main():
     ap.add_argument("--ppl-limit", type=int, default=40000)
     ap.add_argument("--eval-every", type=int, default=50)
     ap.add_argument("--no-quant-act", action="store_true", help="W4A16 (weights only)")
+    ap.add_argument("--save-dir", default=None, help="fold QAT weights back to nn.Linear and save_pretrained here")
+    ap.add_argument("--objective", choices=["kl", "tv", "kltv"], default="kl",
+                    help="kl=match teacher; tv=accept(1-TV) direct (weak grad); "
+                         "kltv=KL backbone + TV acceptance pressure (recommended)")
+    ap.add_argument("--tv-weight", type=float, default=1.0, help="TV term weight for kltv")
     args = ap.parse_args()
 
     from datasets import load_dataset
@@ -130,7 +152,7 @@ def main():
     ppl_ids = test_ids[:, : args.ppl_limit]
     accept_w = [test_ids[:, i * L:(i + 1) * L].to(device) for i in range(test_ids.size(1) // L)][: args.n_accept]
     train = load_dataset("Salesforce/wikitext", "wikitext-2-raw-v1", split="train")
-    tr_ids = tok("\n\n".join(train["text"][:8000]), return_tensors="pt").input_ids
+    tr_ids = tok("\n\n".join(train["text"]), return_tensors="pt").input_ids   # full train (heavy QAT)
     tr_w = [tr_ids[:, i * L:(i + 1) * L].to(device) for i in range(tr_ids.size(1) // L)]
     train_b, val_b = tr_w[args.n_val:args.n_val + args.n_train], tr_w[:args.n_val]
     print(f"  train {len(train_b)}  val {len(val_b)}  accept {len(accept_w)} windows")
@@ -148,7 +170,8 @@ def main():
         p.requires_grad_(True)
     print(f"  replaced {nrep} linears with QATLinear; {len(params)} trainable weights")
 
-    out = {"model": args.model, "w4a4": quant_act, "steps": args.steps, "lr": args.lr}
+    out = {"model": args.model, "w4a4": quant_act, "steps": args.steps, "lr": args.lr,
+           "objective": args.objective}
 
     fp16_ppl = round(perplexity(teacher, ppl_ids, L, L, device), 4)
     out["fp16_ppl"] = fp16_ppl
@@ -159,30 +182,40 @@ def main():
     out["ptq"] = {"ppl": p, "alpha": a, "greedy": g}
     print(f"  [PTQ ] ppl={p} alpha={a} greedy={g}")
 
-    # QAT: train weights against FP16 teacher (KL), monotone-safe on val LM-loss
+    # QAT: train + SELECT on the objective that matters (tv=acceptance, not PPL)
+    if args.objective == "tv":
+        loss_fn = tv_loss
+    elif args.objective == "kltv":
+        loss_fn = lambda s, t: kl_distill_loss(s, t) + args.tv_weight * tv_loss(s, t)
+    else:
+        loss_fn = lambda s, t: kl_distill_loss(s, t)
+    accept_obj = args.objective in ("tv", "kltv")           # select on acceptance for both
+    val_fn = ((lambda: _val_tv(student, teacher, val_b)) if accept_obj
+              else (lambda: _val_loss(student, val_b)))
+    metric = "val TV(1-accept)" if accept_obj else "val loss"
     opt = torch.optim.AdamW(params, lr=args.lr)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.steps)
-    best = _val_loss(student, val_b)
+    best = val_fn()
     best_state = [p.detach().clone() for p in params]
-    print(f"  SVD-init... val loss (PTQ) = {best:.4f}")
+    print(f"  objective={args.objective}  PTQ {metric} = {best:.4f}")
     step = 0
     t0 = time.time()
     while step < args.steps:
         for x in train_b:
             if step >= args.steps:
                 break
-            loss = kl_distill_loss(student(x).logits, teacher(x).logits)
+            loss = loss_fn(student(x).logits, teacher(x).logits)
             opt.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(params, 1.0)
             opt.step(); sched.step(); step += 1
             if step % args.eval_every == 0:
-                v = _val_loss(student, val_b)
+                v = val_fn()
                 tag = ""
                 if v < best:
                     best, tag = v, "  <- best"
                     best_state = [p.detach().clone() for p in params]
-                print(f"  step {step:4d}  train KL {loss.item():.4f}  val loss {v:.4f}{tag}", flush=True)
+                print(f"  step {step:4d}  train {args.objective} {loss.item():.4f}  {metric} {v:.4f}{tag}", flush=True)
     with torch.no_grad():
         for p_, b_ in zip(params, best_state):
             p_.copy_(b_)
@@ -202,12 +235,28 @@ def main():
     out["verdict"] = verdict
     print(f"\n  FP16 {fp16_ppl} | PTQ {out['ptq']['ppl']} (+{gap_ptq:.3f}) | "
           f"QAT {out['qat']['ppl']} (+{gap_qat:.3f})")
-    print(f"  PPL recovered by QAT = {out['ppl_recovered']:+.4f}  "
-          f"(gap closed {out['gap_closed_frac']}); alpha {out['ptq']['alpha']}->{out['qat']['alpha']}")
+    print(f"  *** ACCEPTANCE (the metric that matters): {out['ptq']['alpha']} -> "
+          f"{out['qat']['alpha']}  ({out['alpha_gain']:+.4f}) ***")
+    print(f"  (PPL sanity: recovered {out['ppl_recovered']:+.4f}, gap closed {out['gap_closed_frac']})")
     print(f"  VERDICT: {verdict}")
 
+    if args.save_dir:                                 # fold QATLinear -> nn.Linear, save HF model
+        name_to_mod = dict(student.named_modules())
+        for name, m in list(name_to_mod.items()):
+            if isinstance(m, QATLinear):
+                lin = nn.Linear(m.weight.shape[1], m.weight.shape[0],
+                                bias=m.bias is not None).to(m.weight.device, m.weight.dtype)
+                lin.weight.data.copy_(m.weight.data)
+                if m.bias is not None:
+                    lin.bias.data.copy_(m.bias)
+                parent_name, _, child = name.rpartition(".")
+                setattr(name_to_mod[parent_name] if parent_name else student, child, lin)
+        student.save_pretrained(args.save_dir)
+        tok.save_pretrained(args.save_dir)
+        print(f"  saved QAT model -> {args.save_dir}", flush=True)
+
     RESULTS.mkdir(exist_ok=True)
-    pth = RESULTS / f"qat_nvfp4_{args.model.replace('/', '_')}.json"
+    pth = RESULTS / f"qat_nvfp4_{args.objective}_{args.model.replace('/', '_')}.json"
     pth.write_text(json.dumps(out, indent=2))
     print(f"saved -> {pth}")
 
