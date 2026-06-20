@@ -68,7 +68,7 @@ def calib_residual_basis(model, calib_ids, max_len, device, block, ranks, n_wind
     basis = {}
     for n, c in cov.items():
         evals, evecs = torch.linalg.eigh(c.double())       # ascending
-        basis[n] = evecs[:, -rmax:].flip(1).to(device)     # (d, rmax), desc
+        basis[n] = evecs[:, -rmax:].flip(1).to(device=device, dtype=torch.float32)  # (d, rmax), desc
     return basis
 
 

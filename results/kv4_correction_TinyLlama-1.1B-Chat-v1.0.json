@@ -1,0 +1,6 @@
+{
+  "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0", "block": 16,
+  "fp16": 9.3542, "kv4_raw": 9.4735,
+  "kv4_lowrank": {"16": 9.4587, "32": 9.4501, "64": 9.4194},
+  "verdict": "LEVER REAL — lowrank residual recovers ~45% of the KV4 leg at r=64; but smallest leg, not byte-legal for KV cache (r-dim code/token), needs custom attn kernel. Eq-folded is the only TRT-viable form."
+}
