@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import time
 from pathlib import Path
 
@@ -59,14 +60,47 @@ class QATLinear(nn.Module):
         return F.linear(xq, w, self.bias)
 
 
-def replace_linears(model, block=16, quant_act=True) -> int:
+class LoRAQATLinear(nn.Module):
+    """Frozen NVFP4 base weight + trainable low-rank adapter; the COMBINED weight is
+    fake-quantized (STE). Only the adapter trains -> ~50x smaller optimizer state than
+    full-weight QAT, so ALL layers fit at 8B (full-weight 8B QAT OOMs at 95GB). B inits to
+    zero => BA=0 => starts exactly at PTQ (no initial disruption); the adapter learns to
+    pre-distort the weight so post-quant error shrinks. Folds to a plain nn.Linear at
+    export (drop-in NVFP4 checkpoint for TRT-LLM)."""
+
+    def __init__(self, lin: nn.Linear, block: int = 16, quant_act: bool = True,
+                 rank: int = 16, alpha: float | None = None):
+        super().__init__()
+        out_f, in_f = lin.weight.shape
+        self.register_buffer("weight", lin.weight.data.clone())   # frozen base
+        self.register_buffer("bias", lin.bias.data.clone() if lin.bias is not None else None)
+        self.block = block
+        self.quant_act = quant_act
+        self.scaling = (alpha if alpha is not None else rank) / rank
+        dev, dt = lin.weight.device, lin.weight.dtype
+        self.lora_A = nn.Parameter(torch.empty(rank, in_f, device=dev, dtype=dt))
+        self.lora_B = nn.Parameter(torch.zeros(out_f, rank, device=dev, dtype=dt))
+        nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))     # B=0 -> adapter starts at 0
+
+    def merged_weight(self):
+        return self.weight + self.scaling * (self.lora_B @ self.lora_A)
+
+    def forward(self, x):
+        w = _fq(self.merged_weight(), self.block)
+        xq = _fq(x, self.block) if self.quant_act else x
+        return F.linear(xq, w, self.bias)
+
+
+def replace_linears(model, block=16, quant_act=True, lora_rank=0, lora_alpha=None) -> int:
     n = 0
     name_to_mod = dict(model.named_modules())
     for name, m in list(name_to_mod.items()):
         if isinstance(m, nn.Linear) and m.weight.shape[-1] % block == 0:
             parent_name, _, child = name.rpartition(".")
             parent = name_to_mod[parent_name] if parent_name else model
-            setattr(parent, child, QATLinear(m, block, quant_act).to(m.weight.device))
+            new = (LoRAQATLinear(m, block, quant_act, lora_rank, lora_alpha) if lora_rank > 0
+                   else QATLinear(m, block, quant_act))
+            setattr(parent, child, new.to(m.weight.device))
             n += 1
     return n
 
@@ -121,6 +155,10 @@ def main():
                     help="activation checkpointing — needed to fit large (8B) QAT in GPU mem")
     ap.add_argument("--train-every", type=int, default=1,
                     help="train only every Nth QATLinear (memory lever for 8B; rest stay frozen+fake-quant)")
+    ap.add_argument("--lora-rank", type=int, default=0,
+                    help=">0 enables LoRA-QAT: freeze base weights, train only rank-r adapters on ALL "
+                         "layers (tiny optimizer state -> full 8B QAT fits). The real 8B path.")
+    ap.add_argument("--lora-alpha", type=float, default=None, help="LoRA scaling alpha (default = rank)")
     ap.add_argument("--eval-every", type=int, default=50)
     ap.add_argument("--no-quant-act", action="store_true", help="W4A16 (weights only)")
     ap.add_argument("--save-dir", default=None, help="fold QAT weights back to nn.Linear and save_pretrained here")
@@ -166,22 +204,31 @@ def main():
         p.requires_grad_(False)
 
     student = load().to(device).eval()
-    nrep = replace_linears(student, 16, quant_act)
+    nrep = replace_linears(student, 16, quant_act, args.lora_rank, args.lora_alpha)
     if args.grad_checkpoint:
         student.config.use_cache = False
         student.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     for p in student.parameters():
         p.requires_grad_(False)
-    qlins = [m for m in student.modules() if isinstance(m, QATLinear)]
-    # train-every>1: only every Nth QATLinear is trainable (grads+Adam states scale with
-    # trainable params) — the memory lever for fitting 8B QAT. Untrained layers are still
-    # fake-quantized in the forward, so the student is fully W4A4; we just don't update them.
-    train_q = qlins[::args.train_every]
-    params = [m.weight for m in train_q]
-    for p in params:
-        p.requires_grad_(True)
-    print(f"  replaced {nrep} linears with QATLinear; training {len(params)}/{len(qlins)} "
-          f"weights (every {args.train_every})")
+    if args.lora_rank > 0:
+        # LoRA-QAT: only the adapters train (all layers covered, tiny optimizer state).
+        params = [p for m in student.modules() if isinstance(m, LoRAQATLinear)
+                  for p in (m.lora_A, m.lora_B)]
+        for p in params:
+            p.requires_grad_(True)
+        print(f"  LoRA-QAT rank {args.lora_rank} on {nrep} linears; "
+              f"{sum(p.numel() for p in params) / 1e6:.1f}M trainable adapter params")
+    else:
+        qlins = [m for m in student.modules() if isinstance(m, QATLinear)]
+        # train-every>1: only every Nth QATLinear is trainable (grads+Adam states scale with
+        # trainable params) — the memory lever for fitting 8B QAT. Untrained layers are still
+        # fake-quantized in the forward, so the student is fully W4A4; we just don't update them.
+        train_q = qlins[::args.train_every]
+        params = [m.weight for m in train_q]
+        for p in params:
+            p.requires_grad_(True)
+        print(f"  replaced {nrep} linears with QATLinear; training {len(params)}/{len(qlins)} "
+              f"weights (every {args.train_every})")
 
     out = {"model": args.model, "w4a4": quant_act, "steps": args.steps, "lr": args.lr,
            "objective": args.objective}
@@ -258,10 +305,11 @@ def main():
     if args.save_dir:                                 # fold QATLinear -> nn.Linear, save HF model
         name_to_mod = dict(student.named_modules())
         for name, m in list(name_to_mod.items()):
-            if isinstance(m, QATLinear):
-                lin = nn.Linear(m.weight.shape[1], m.weight.shape[0],
-                                bias=m.bias is not None).to(m.weight.device, m.weight.dtype)
-                lin.weight.data.copy_(m.weight.data)
+            if isinstance(m, (QATLinear, LoRAQATLinear)):
+                w = m.merged_weight().detach() if isinstance(m, LoRAQATLinear) else m.weight.data
+                lin = nn.Linear(w.shape[1], w.shape[0],
+                                bias=m.bias is not None).to(w.device, w.dtype)
+                lin.weight.data.copy_(w)
                 if m.bias is not None:
                     lin.bias.data.copy_(m.bias)
                 parent_name, _, child = name.rpartition(".")
