@@ -117,6 +117,10 @@ def main():
     ap.add_argument("--n-val", type=int, default=8)
     ap.add_argument("--n-accept", type=int, default=8)
     ap.add_argument("--ppl-limit", type=int, default=40000)
+    ap.add_argument("--grad-checkpoint", action="store_true",
+                    help="activation checkpointing — needed to fit large (8B) QAT in GPU mem")
+    ap.add_argument("--train-every", type=int, default=1,
+                    help="train only every Nth QATLinear (memory lever for 8B; rest stay frozen+fake-quant)")
     ap.add_argument("--eval-every", type=int, default=50)
     ap.add_argument("--no-quant-act", action="store_true", help="W4A16 (weights only)")
     ap.add_argument("--save-dir", default=None, help="fold QAT weights back to nn.Linear and save_pretrained here")
@@ -163,12 +167,21 @@ def main():
 
     student = load().to(device).eval()
     nrep = replace_linears(student, 16, quant_act)
+    if args.grad_checkpoint:
+        student.config.use_cache = False
+        student.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     for p in student.parameters():
         p.requires_grad_(False)
-    params = [m.weight for m in student.modules() if isinstance(m, QATLinear)]
+    qlins = [m for m in student.modules() if isinstance(m, QATLinear)]
+    # train-every>1: only every Nth QATLinear is trainable (grads+Adam states scale with
+    # trainable params) — the memory lever for fitting 8B QAT. Untrained layers are still
+    # fake-quantized in the forward, so the student is fully W4A4; we just don't update them.
+    train_q = qlins[::args.train_every]
+    params = [m.weight for m in train_q]
     for p in params:
         p.requires_grad_(True)
-    print(f"  replaced {nrep} linears with QATLinear; {len(params)} trainable weights")
+    print(f"  replaced {nrep} linears with QATLinear; training {len(params)}/{len(qlins)} "
+          f"weights (every {args.train_every})")
 
     out = {"model": args.model, "w4a4": quant_act, "steps": args.steps, "lr": args.lr,
            "objective": args.objective}
@@ -193,7 +206,9 @@ def main():
     val_fn = ((lambda: _val_tv(student, teacher, val_b)) if accept_obj
               else (lambda: _val_loss(student, val_b)))
     metric = "val TV(1-accept)" if accept_obj else "val loss"
-    opt = torch.optim.AdamW(params, lr=args.lr)
+    # foreach=False: update params one at a time. foreach/fused Adam allocates a transient
+    # full-size copy of the optimizer state (e.g. _foreach_sqrt) which OOMs at 8B scale.
+    opt = torch.optim.AdamW(params, lr=args.lr, foreach=False)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.steps)
     best = val_fn()
     best_state = [p.detach().clone() for p in params]

@@ -1,0 +1,9 @@
+{
+  "model": "unsloth/Meta-Llama-3.1-8B", "w4a4": true, "steps": 800, "lr": 3e-05,
+  "objective": "kl", "fp16_ppl": 7.9447,
+  "ptq": {"ppl": 9.5433, "alpha": 0.8, "greedy": 0.7774},
+  "qat": {"ppl": 9.5433, "alpha": 0.8, "greedy": 0.7774},
+  "ppl_recovered": 0.0, "alpha_gain": 0.0, "gap_closed_frac": 0.0,
+  "note": "NULL: half-layer (113/225) training, forced by 95GB ceiling, never beat PTQ val baseline -> selection kept PTQ weights. Full-layer 8B QAT OOMs. LoRA-QAT is the required approach.",
+  "verdict": "no recovery (QAT ~= PTQ)"
+}

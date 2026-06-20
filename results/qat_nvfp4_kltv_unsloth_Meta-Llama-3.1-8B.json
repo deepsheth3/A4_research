@@ -1,0 +1,9 @@
+{
+  "model": "unsloth/Meta-Llama-3.1-8B", "w4a4": true, "steps": 500, "lr": 2e-05,
+  "objective": "kltv", "fp16_ppl": 7.9447,
+  "ptq": {"ppl": 9.5433, "alpha": 0.8, "greedy": 0.7774},
+  "qat": {"ppl": 9.5433, "alpha": 0.8, "greedy": 0.7774},
+  "ppl_recovered": 0.0, "alpha_gain": 0.0,
+  "note": "NULL: same half-layer ceiling; val acceptance never beat PTQ baseline.",
+  "verdict": "no recovery (QAT ~= PTQ)"
+}
