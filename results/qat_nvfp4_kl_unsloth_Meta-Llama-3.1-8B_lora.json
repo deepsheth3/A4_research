@@ -1,11 +1,11 @@
 {
-  "model": "unsloth/Meta-Llama-3.1-8B", "method": "LoRA-QAT", "lora_rank": 16,
-  "w4a4": true, "steps": 300, "lr": 1e-4, "max_len": 512, "objective": "kl",
-  "gpu_mem_gb": 66, "trainable_params_M": 44.1,
-  "fp16_ppl": 7.9447,
+  "model": "unsloth/Meta-Llama-3.1-8B", "method": "LoRA-QAT", "w4a4": true,
+  "objective": "kl", "fp16_ppl": 7.9447, "gpu_mem_gb": 66,
   "ptq": {"ppl": 9.5433, "alpha": 0.8, "greedy": 0.7774},
-  "qat": {"ppl": 8.8956, "alpha": 0.8305, "greedy": 0.8004},
-  "ppl_recovered": 0.6477, "alpha_gain": 0.0305, "gap_closed_frac": 0.405,
-  "note": "SMOKE (rank16/300steps/512ctx) already closes 40.5% of the +1.60 gap where full-weight 8B OOMs and subset-QAT was NULL. Fits at 66/95GB. Scales: rank32-64 + 2000 steps + 1024ctx -> more.",
+  "runs": {
+    "rank16_300steps_512ctx": {"ppl": 8.8956, "alpha": 0.8305, "recovered": 0.6477, "gap_closed_frac": 0.405},
+    "rank32_1500steps_512ctx": {"ppl": 8.8102, "alpha": 0.8315, "recovered": 0.7331, "gap_closed_frac": 0.459}
+  },
+  "note": "LoRA-QAT closes ~46% of the +1.60 W4A4 gap at 8B where full-weight OOMs and subset-QAT was null. Fits 66/95GB. Scaling r16->r32 + 300->1500 steps: 40.5%->45.9% (diminishing at 512ctx). Next levers: max-len 1024, rank 64.",
   "verdict": "QAT WINS — LoRA-QAT is the validated 8B path"
 }
