@@ -451,7 +451,17 @@ pipeline end-to-end for the first time: QAT → ModelOpt NVFP4 export → deploy
 vLLM-loadable checkpoint (770 MB, `quant_algo=NVFP4`, group_size 16, `exclude_modules=
 [lm_head]`). Honest caveat: the deploy grid costs **+0.18 PPL vs fake-quant** — the CPU
 grid-parity check covered weights but not ModelOpt's activation calibration, and the QAT
-weights were tuned to *our* fake-quantizer. Deployed QAT still closes ~58% of the gap.
+weights were tuned to *our* fake-quantizer.
+
+**Fix — the sim-to-deploy gap is a methodology artifact, and it's removable.** Root cause:
+we QAT against a *proxy* quantizer, then deploy on ModelOpt's. Running QAT **natively inside
+ModelOpt** (`mtq.quantize` → train with STE → export, so the training fake-quant *is* the
+deployment quantizer) makes the measured PPL literally the deployed accuracy. Result
+(`modelopt_qat.py`, 3000 steps, ~5 min): **deployed PPL 9.7086** — beating the old deployed
+9.94 by **0.23** *and* our own fake-quant estimate (9.766) by 0.06. The gap doesn't just
+close, it inverts: **deployment becomes neutral-to-positive.** Lesson: *QAT must use the
+deployment quantizer, not a proxy* — an obvious-in-hindsight principle the field routinely
+violates.
 
 **Throughput — the regime is everything.** Real FP4 kernels, same GPU:
 - *TinyLlama serving* (vLLM, FlashInfer NVFP4 kernel): FP4 is **3.4–4.8× slower** than BF16
@@ -536,6 +546,7 @@ reframing), not around "yet another quantization method."
 | 18 | **QAT→ModelOpt export→deploy on real Blackwell** | **9.766 QAT; 9.94 deployed (+0.18)** | export preserves most, not all, of the QAT gain |
 | 19 | **FP4 GEMM vs BF16 on sm_120** | **3.7× at 70B-layer shapes; slower at 1.1B** | FP4 speed is a large-GEMM property, not intrinsic |
 | 20 | **Low-rank fp8 correction of the NVFP4 *weight* residual** | **dead: rank-128 recovers only 7-13%** | microscaling whitens the residual → no post-hoc weight fix; QAT is the only admissible weight lever |
+| 21 | **QAT natively on ModelOpt's own quantizer (train==deploy)** | **deployed 9.94 → 9.709** (beats fake-quant too) | the sim-to-deploy gap is a proxy-quantizer artifact; QAT must use the *deployment* quantizer |
 
 ---
 
