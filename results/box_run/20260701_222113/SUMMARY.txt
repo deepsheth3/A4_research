@@ -1,0 +1,33 @@
+[22:21:13] run dir: results/box_run/20260701_222113 | model: TinyLlama/TinyLlama-1.1B-Chat-v1.0 | steps: 3000 | extra: ''
+[22:21:13] STEP 0 preflight
+GPU NVIDIA RTX PRO 6000 Blackwell Server Edition sm_120
+.....                                                                    [100%]
+5 passed in 0.84s
+[22:21:16] STEP 1 gemm_bench (real FP4 GEMM)
+[22:21:20] gemm_bench: FAILED/SUSPECT (see log) — throughput numbers below still worth capturing
+device: NVIDIA RTX PRO 6000 Blackwell Server Edition  sm_120  torch 2.12.0+cu130  torchao 0.17.0
+FP4 correctness: rel_err=0.1344  (expect ~0.02-0.25 for real FP4)
+attn 4096x4096       64     129     172       3    0.01x   SUSPECT
+attn 4096x4096      128     207     259       5    0.02x   SUSPECT
+attn 4096x4096      256     215     416       9    0.02x   SUSPECT
+mlp 4096x14336       64     215     401       2    0.00x   SUSPECT
+mlp 4096x14336      128     261     429       3    0.01x   SUSPECT
+mlp 4096x14336      256     305     472       6    0.01x   SUSPECT
+SUSPECT = FP4 slower than FP8 => emulation kernel, not real tensor cores.
+[22:21:20] STEP 2 QAT TinyLlama/TinyLlama-1.1B-Chat-v1.0 (3000 steps)
+  replaced 155 linears with QATLinear; training 155/155 weights (every 1)
+  FP16 ppl = 9.3576
+  [PTQ ] ppl=10.7337 alpha=0.8249 greedy=0.8006
+  objective=kl  PTQ val loss = 2.5594
+  [QAT ] ppl=9.766 alpha=0.8653 greedy=0.8404
+  FP16 9.3576 | PTQ 10.7337 (+1.376) | QAT 9.766 (+0.408)
+  *** ACCEPTANCE (the metric that matters): 0.8249 -> 0.8653  (+0.0404) ***
+  (PPL sanity: recovered +0.9677, gap closed 0.703)
+  VERDICT: QAT WINS — recovers the PTQ gap
+  saved QAT model -> results/box_run/20260701_222113/qat_ckpt
+[22:30:13] STEP 3 export NVFP4 + PPL
+*** DEPLOYED QAT NVFP4 WikiText PPL: 9.9426 ***
+exporting NVFP4 checkpoint -> results/box_run/20260701_222113/nvfp4_ckpt
+done. load in TRT-LLM/vLLM directly from results/box_run/20260701_222113/nvfp4_ckpt
+[22:30:25] STEP 4 FP4 throughput (auto backend)
+[22:30:26] DONE. Artifacts in results/box_run/20260701_222113 — SAVE/UPLOAD results/box_run/20260701_222113/nvfp4_ckpt before tearing the box down.

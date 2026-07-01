@@ -30,10 +30,31 @@ import torch.nn.functional as F
 
 from turboquant.nvfp4 import nvfp4_quantize
 from turboquant.distill import kl_distill_loss
-from turboquant.validation.hf_perplexity import _is_linear, perplexity
+from turboquant.config import TurboQuantConfig
+from turboquant.act_codec import TurboQuantActQuantizer
+from turboquant.validation.hf_perplexity import _is_linear, perplexity, calibrate_eq_scales
 from turboquant.validation.acceptance import acceptance_stats
 
 RESULTS = Path(__file__).resolve().parents[2] / "results"
+
+
+def install_kv4_qat(student, codec) -> list:
+    """Make QAT KV-cache-aware: fake-quant (NVFP4 + QJL) the K/V projection outputs in the
+    forward with a straight-through estimator, so the trained weights learn to be robust to
+    KV4 too. Hooks the k_proj/v_proj leaves (now QATLinear after replace_linears) by name.
+    KV keeps the QJL side-channel (cheap, 1-bit); only the SVD side-channel is dropped."""
+    handles = []
+    kv = [(n, m) for n, m in student.named_modules() if n.endswith(("k_proj", "v_proj"))]
+
+    def _make(idx):
+        def h(module, inp, out):
+            q = codec.fake_quantize(out.float(), layer_idx=idx).to(out.dtype)
+            return out + (q - out).detach()          # STE: forward=quantized, grad=identity
+        return h
+
+    for i, (_, m) in enumerate(kv):
+        handles.append(m.register_forward_hook(_make(i)))
+    return handles, len(kv)
 
 
 def _fq(x, block):
@@ -91,11 +112,37 @@ class LoRAQATLinear(nn.Module):
         return F.linear(xq, w, self.bias)
 
 
-def replace_linears(model, block=16, quant_act=True, lora_rank=0, lora_alpha=None) -> int:
+def _layer_indices(model) -> list[int]:
+    """Decoder-block indices present in the module tree (from '...layers.{i}...')."""
+    import re
+    idx = {int(m.group(1)) for n, _ in model.named_modules()
+           if (m := re.search(r"\.layers\.(\d+)\.", n))}
+    return sorted(idx)
+
+
+def boundary_ignore(model) -> list[str]:
+    """The ModelOpt-style high-precision recipe: keep the first + last decoder blocks
+    and lm_head in BF16. lm_head is already excluded by ModelOpt's NVFP4 default, so
+    including it here just makes our fake-quant mirror what actually deploys."""
+    idx = _layer_indices(model)
+    pats = ["lm_head"]
+    if idx:
+        pats += [f".layers.{idx[0]}.", f".layers.{idx[-1]}."]
+    return pats
+
+
+def replace_linears(model, block=16, quant_act=True, lora_rank=0, lora_alpha=None,
+                    ignore=None) -> int:
+    """Swap eligible nn.Linear for (LoRA)QATLinear. ``ignore`` is a list of substrings;
+    a Linear whose module name contains any of them is left in BF16 (unquantized) —
+    the deployable layer-precision recipe (e.g. boundary blocks + lm_head)."""
+    ignore = ignore or []
     n = 0
     name_to_mod = dict(model.named_modules())
     for name, m in list(name_to_mod.items()):
         if isinstance(m, nn.Linear) and m.weight.shape[-1] % block == 0:
+            if any(pat in name for pat in ignore):
+                continue
             parent_name, _, child = name.rpartition(".")
             parent = name_to_mod[parent_name] if parent_name else model
             new = (LoRAQATLinear(m, block, quant_act, lora_rank, lora_alpha) if lora_rank > 0
@@ -166,6 +213,22 @@ def main():
                     help="kl=match teacher; tv=accept(1-TV) direct (weak grad); "
                          "kltv=KL backbone + TV acceptance pressure (recommended)")
     ap.add_argument("--tv-weight", type=float, default=1.0, help="TV term weight for kltv")
+    ap.add_argument("--mx-block", type=int, default=16,
+                    help="MX4 microscaling group size (16=NVFP4 spec; 32=MXFP4-grained, "
+                         "cheaper scale overhead but coarser — outliers hurt 2x, lean on --eq-fold)")
+    ap.add_argument("--eq-fold", action="store_true",
+                    help="calibrate per-channel equalization scales and apply as activation "
+                         "pre-hooks before QAT — lets QAT absorb the correction that SVD "
+                         "provides post-hoc, at zero inference cost (no side-channel at deploy)")
+    ap.add_argument("--kv4", action="store_true",
+                    help="make QAT KV-cache-aware: fake-quant K/V projection outputs to "
+                         "NVFP4 + QJL (STE) in the forward, so weights learn KV4 robustness. "
+                         "Full W4A4KV4 trained, SVD dropped, QJL kept on KV.")
+    ap.add_argument("--qjl-block", type=int, default=128, help="QJL sub-block size (KV4)")
+    ap.add_argument("--qjl-dim", type=int, default=64, help="QJL sign projections per block (KV4); 0=off")
+    ap.add_argument("--ignore", default="", help="comma-sep name substrings kept in BF16 (unquantized)")
+    ap.add_argument("--ignore-boundary", action="store_true",
+                    help="ModelOpt-style recipe: keep first+last decoder block and lm_head in BF16")
     args = ap.parse_args()
 
     from datasets import load_dataset
@@ -204,7 +267,58 @@ def main():
         p.requires_grad_(False)
 
     student = load().to(device).eval()
-    nrep = replace_linears(student, 16, quant_act, args.lora_rank, args.lora_alpha)
+
+    # EQ-fold: calibrate per-channel scales while student still has nn.Linear (before replace_linears).
+    # The scales fold equalization into the forward pass so QAT sees uniform activations without
+    # any SVD side-channel — the model learns to quantize-robustly in already-equalized space.
+    eq_scales = {}
+    if args.eq_fold:
+        calib_ids = tr_ids[:, :4 * L]
+        eq_scales = calibrate_eq_scales(student, calib_ids, L, device, mx_block=args.mx_block,
+                                        weight_aware=True)
+        print(f"  EQ-fold: calibrated {len(eq_scales)} layer scales")
+
+    ignore = [p for p in args.ignore.split(",") if p]
+    if args.ignore_boundary:
+        ignore += boundary_ignore(student)
+    if ignore:
+        print(f"  ignore (kept BF16): {ignore}")
+    nrep = replace_linears(student, args.mx_block, quant_act, args.lora_rank, args.lora_alpha,
+                           ignore=ignore)
+
+    # Install eq pre-hooks on the now-replaced QATLinear/LoRAQATLinear modules.
+    # Iterate model.modules() in the same order as calibrate_eq_scales used, matching by index.
+    eq_hooks = []
+    if args.eq_fold:
+        def _is_any_linear(m):
+            return isinstance(m, (QATLinear, LoRAQATLinear)) or _is_linear(m)
+        for i, m in enumerate(mod for mod in student.modules() if _is_any_linear(mod)):
+            if i not in eq_scales:
+                continue
+            s = eq_scales[i].to(device)
+            # Fold s into the weight's input columns so equalization is identity in full
+            # precision: (W·s) @ (x/s) = W @ x. The activation pre-hook alone divides x but
+            # never compensates W -> a corrupted forward (35k ppl). With the fold, the
+            # quantizer sees equalized (uniform) activations AND weights, which is the point.
+            m.weight.data.mul_(s.to(m.weight.dtype))
+            def _make_eq_hook(scale):
+                def h(module, args_):
+                    x = args_[0]
+                    return (x / scale.to(x.dtype),) + args_[1:]
+                return h
+            eq_hooks.append(m.register_forward_pre_hook(_make_eq_hook(s)))
+        print(f"  EQ-fold: installed hooks on {len(eq_hooks)} student layers")
+
+    # KV4-aware QAT: fake-quant K/V to NVFP4+QJL in the forward (STE) on the student only
+    # (teacher stays FP16). Hooks persist through training AND eval, so PTQ and QAT are both
+    # measured under KV4 — an honest W4A4KV4 head-to-head.
+    if args.kv4:
+        kv_cfg = TurboQuantConfig(mx_block=args.mx_block, qjl_block=args.qjl_block,
+                                  qjl_dim=args.qjl_dim, use_optclip=True)
+        kv_codec = TurboQuantActQuantizer(kv_cfg)
+        _, n_kv = install_kv4_qat(student, kv_codec)
+        print(f"  KV4: fake-quant (NVFP4+QJL dim={args.qjl_dim}) on {n_kv} K/V projections")
+
     if args.grad_checkpoint:
         student.config.use_cache = False
         student.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
@@ -231,7 +345,8 @@ def main():
               f"weights (every {args.train_every})")
 
     out = {"model": args.model, "w4a4": quant_act, "steps": args.steps, "lr": args.lr,
-           "objective": args.objective}
+           "objective": args.objective, "eq_fold": args.eq_fold, "mx_block": args.mx_block,
+           "kv4": args.kv4, "qjl_dim": args.qjl_dim if args.kv4 else 0}
 
     fp16_ppl = round(perplexity(teacher, ppl_ids, L, L, device), 4)
     out["fp16_ppl"] = fp16_ppl
@@ -319,7 +434,10 @@ def main():
         print(f"  saved QAT model -> {args.save_dir}", flush=True)
 
     RESULTS.mkdir(exist_ok=True)
-    pth = RESULTS / f"qat_nvfp4_{args.objective}_{args.model.replace('/', '_')}.json"
+    eq_tag = "_eq" if args.eq_fold else ""
+    kv_tag = "_kv4" if args.kv4 else ""
+    blk_tag = f"_b{args.mx_block}" if args.mx_block != 16 else ""
+    pth = RESULTS / f"qat_nvfp4_{args.objective}{eq_tag}{kv_tag}{blk_tag}_{args.model.replace('/', '_')}.json"
     pth.write_text(json.dumps(out, indent=2))
     print(f"saved -> {pth}")
 

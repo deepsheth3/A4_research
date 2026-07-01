@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 *.pt
+
+# box-run model weights are too large for git (kept locally / use LFS or external storage)
+results/box_run/**/model.safetensors

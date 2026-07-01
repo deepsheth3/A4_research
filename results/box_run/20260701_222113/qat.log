@@ -1,0 +1,81 @@
+device=cuda dtype=torch.bfloat16 model=TinyLlama/TinyLlama-1.1B-Chat-v1.0 W4A4 steps=3000 lr=3e-05
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (341469 > 2048). Running this sequence through the model will result in indexing errors
+  train 1500  val 8  accept 8 windows
+W0701 22:21:35.741000 3960 site-packages/torch/utils/_pytree.py:630] <enum 'KernelPreference'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+W0701 22:21:35.754000 3960 site-packages/torch/utils/_pytree.py:630] <enum 'ScaleCalculationMode'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 12324.11it/s]
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 14289.80it/s]
+  replaced 155 linears with QATLinear; training 155/155 weights (every 1)
+  FP16 ppl = 9.3576
+  [PTQ ] ppl=10.7337 alpha=0.8249 greedy=0.8006
+  objective=kl  PTQ val loss = 2.5594
+  step   50  train kl 0.1009  val loss 2.4901  <- best
+  step  100  train kl 0.1161  val loss 2.4991
+  step  150  train kl 0.1179  val loss 2.4830  <- best
+  step  200  train kl 0.1018  val loss 2.4787  <- best
+  step  250  train kl 0.1240  val loss 2.4857
+  step  300  train kl 0.1168  val loss 2.4817
+  step  350  train kl 0.1205  val loss 2.4866
+  step  400  train kl 0.1022  val loss 2.4802
+  step  450  train kl 0.1211  val loss 2.4852
+  step  500  train kl 0.0920  val loss 2.4853
+  step  550  train kl 0.1060  val loss 2.4833
+  step  600  train kl 0.0755  val loss 2.4880
+  step  650  train kl 0.0972  val loss 2.4882
+  step  700  train kl 0.1106  val loss 2.4912
+  step  750  train kl 0.0781  val loss 2.4818
+  step  800  train kl 0.0992  val loss 2.4812
+  step  850  train kl 0.0763  val loss 2.4747  <- best
+  step  900  train kl 0.0968  val loss 2.4868
+  step  950  train kl 0.1231  val loss 2.4802
+  step 1000  train kl 0.0950  val loss 2.4691  <- best
+  step 1050  train kl 0.1113  val loss 2.4763
+  step 1100  train kl 0.0975  val loss 2.4717
+  step 1150  train kl 0.0705  val loss 2.4758
+  step 1200  train kl 0.1222  val loss 2.4801
+  step 1250  train kl 0.0875  val loss 2.4794
+  step 1300  train kl 0.0888  val loss 2.4781
+  step 1350  train kl 0.1184  val loss 2.4736
+  step 1400  train kl 0.0915  val loss 2.4731
+  step 1450  train kl 0.0900  val loss 2.4734
+  step 1500  train kl 0.1174  val loss 2.4746
+  step 1550  train kl 0.1044  val loss 2.4677  <- best
+  step 1600  train kl 0.1263  val loss 2.4698
+  step 1650  train kl 0.1073  val loss 2.4670  <- best
+  step 1700  train kl 0.1353  val loss 2.4753
+  step 1750  train kl 0.1062  val loss 2.4660  <- best
+  step 1800  train kl 0.1139  val loss 2.4705
+  step 1850  train kl 0.1046  val loss 2.4689
+  step 1900  train kl 0.1056  val loss 2.4688
+  step 1950  train kl 0.1797  val loss 2.4680
+  step 2000  train kl 0.0875  val loss 2.4659  <- best
+  step 2050  train kl 0.1060  val loss 2.4659
+  step 2100  train kl 0.0789  val loss 2.4653  <- best
+  step 2150  train kl 0.0914  val loss 2.4635  <- best
+  step 2200  train kl 0.0947  val loss 2.4711
+  step 2250  train kl 0.0697  val loss 2.4678
+  step 2300  train kl 0.0838  val loss 2.4663
+  step 2350  train kl 0.0647  val loss 2.4687
+  step 2400  train kl 0.1012  val loss 2.4688
+  step 2450  train kl 0.0955  val loss 2.4708
+  step 2500  train kl 0.0839  val loss 2.4658
+  step 2550  train kl 0.0686  val loss 2.4670
+  step 2600  train kl 0.0845  val loss 2.4608  <- best
+  step 2650  train kl 0.0661  val loss 2.4614
+  step 2700  train kl 0.0992  val loss 2.4616
+  step 2750  train kl 0.0786  val loss 2.4700
+  step 2800  train kl 0.0693  val loss 2.4673
+  step 2850  train kl 0.0861  val loss 2.4673
+  step 2900  train kl 0.0831  val loss 2.4673
+  step 2950  train kl 0.0827  val loss 2.4673
+  step 3000  train kl 0.1022  val loss 2.4673
+  [QAT ] ppl=9.766 alpha=0.8653 greedy=0.8404
+
+  FP16 9.3576 | PTQ 10.7337 (+1.376) | QAT 9.766 (+0.408)
+  *** ACCEPTANCE (the metric that matters): 0.8249 -> 0.8653  (+0.0404) ***
+  (PPL sanity: recovered +0.9677, gap closed 0.703)
+  VERDICT: QAT WINS — recovers the PTQ gap
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  1.25it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  1.25it/s]
+  saved QAT model -> results/box_run/20260701_222113/qat_ckpt
+saved -> /workspace/NVFP4_Research/results/qat_nvfp4_kl_TinyLlama_TinyLlama-1.1B-Chat-v1.0.json

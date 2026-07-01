@@ -1,0 +1,16 @@
+W0701 22:21:18.719000 3885 site-packages/torch/utils/_pytree.py:630] <enum 'KernelPreference'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+W0701 22:21:18.733000 3885 site-packages/torch/utils/_pytree.py:630] <enum 'ScaleCalculationMode'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+FP4 path: NVFP4Tensor (block-16, target CUTLASS)
+device: NVIDIA RTX PRO 6000 Blackwell Server Edition  sm_120  torch 2.12.0+cu130  torchao 0.17.0
+FP4 correctness: rel_err=0.1344  (expect ~0.02-0.25 for real FP4)
+
+shape                 M    BF16     FP8     FP4  FP4/FP8      flag
+attn 4096x4096       64     129     172       3    0.01x   SUSPECT
+attn 4096x4096      128     207     259       5    0.02x   SUSPECT
+attn 4096x4096      256     215     416       9    0.02x   SUSPECT
+mlp 4096x14336       64     215     401       2    0.00x   SUSPECT
+mlp 4096x14336      128     261     429       3    0.01x   SUSPECT
+mlp 4096x14336      256     305     472       6    0.01x   SUSPECT
+
+SUSPECT = FP4 slower than FP8 => emulation kernel, not real tensor cores.
+ABORT: FP4 emulating on at least one shape — fix the kernel dispatch before trusting numbers.
