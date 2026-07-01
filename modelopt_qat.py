@@ -8,15 +8,19 @@ import time, torch
 import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import load_dataset
+import os
 import modelopt.torch.quantization as mtq
 from modelopt.torch.export import export_hf_checkpoint
 from turboquant.validation.hf_perplexity import perplexity
+from turboquant.validation.export_nvfp4 import build_quant_cfg
 
 MODEL = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 DEV = "cuda"
 L = 1024
-STEPS = 3000
-OUT = "/workspace/NVFP4_Research/results/box_run/modelopt_qat_ckpt"
+STEPS = int(os.environ.get("STEPS", 3000))
+KV4 = os.environ.get("KV4", "0") == "1"
+OUT = "/workspace/NVFP4_Research/results/box_run/modelopt_qat_kv4_ckpt" if KV4 \
+      else "/workspace/NVFP4_Research/results/box_run/modelopt_qat_ckpt"
 
 tok = AutoTokenizer.from_pretrained(MODEL)
 student = AutoModelForCausalLM.from_pretrained(MODEL, dtype=torch.bfloat16).to(DEV)
@@ -39,8 +43,9 @@ def floop(m):
     with torch.no_grad():
         for b in calib:
             m(b)
-print("calibrating + installing ModelOpt NVFP4 quantizers...", flush=True)
-mtq.quantize(student, mtq.NVFP4_DEFAULT_CFG, floop)
+cfg = build_quant_cfg(mtq.NVFP4_DEFAULT_CFG, kv_cfg=mtq.NVFP4_KV_CFG if KV4 else None)
+print(f"calibrating + installing ModelOpt NVFP4 quantizers (KV4={KV4}, steps={STEPS})...", flush=True)
+mtq.quantize(student, cfg, floop)
 
 fp16 = perplexity(teacher, ppl_ids, L, L, DEV)
 ptq = perplexity(student, ppl_ids, L, L, DEV)   # PTQ on the DEPLOY grid

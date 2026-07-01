@@ -1,0 +1,26 @@
+W0701 23:23:59.008000 7904 site-packages/torch/utils/_pytree.py:630] <enum 'KernelPreference'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+W0701 23:23:59.026000 7904 site-packages/torch/utils/_pytree.py:630] <enum 'ScaleCalculationMode'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+/venv/main/lib/python3.12/site-packages/modelopt/torch/__init__.py:53: UserWarning: transformers>=5.0 support is experimental. Unified Hugging Face checkpoint export for quantized checkpoints may not work for some models yet.
+  _warnings.warn(
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 13098.85it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 12899.63it/s]
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (2874559 > 2048). Running this sequence through the model will result in indexing errors
+calibrating + installing ModelOpt NVFP4 quantizers (KV4=True, steps=4000)...
+Registered <class 'transformers.models.llama.modeling_llama.LlamaAttention'> to _QuantAttention for KV Cache quantization
+Inserted 553 quantizers
+FP16 9.3576 | PTQ(deploy-grid) 10.5896
+step 500 kl 0.1104 deploy-PPL 10.0396 best 10.0396 [0.8min]
+step 1000 kl 0.1146 deploy-PPL 9.9536 best 9.9536 [1.7min]
+step 1500 kl 0.0977 deploy-PPL 9.9449 best 9.9449 [2.5min]
+step 2000 kl 0.0870 deploy-PPL 9.8593 best 9.8593 [3.3min]
+step 2500 kl 0.1024 deploy-PPL 9.8797 best 9.8593 [4.2min]
+step 3000 kl 0.1142 deploy-PPL 9.7891 best 9.7891 [5.0min]
+step 3500 kl 0.0939 deploy-PPL 9.7513 best 9.7513 [5.8min]
+step 4000 kl 0.0956 deploy-PPL 9.7052 best 9.7052 [6.7min]
+
+*** ModelOpt-NATIVE QAT: deployed PPL = 9.7052  (best 9.7052) | FP16 9.3576 | PTQ 10.5896 | gap closed 0.718 ***
+train==deploy: this PPL IS the deployed accuracy (no sim-to-real gap).
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.34it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.33it/s]
+exported -> /workspace/NVFP4_Research/results/box_run/modelopt_qat_kv4_ckpt

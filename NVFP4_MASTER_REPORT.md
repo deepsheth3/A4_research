@@ -463,6 +463,13 @@ close, it inverts: **deployment becomes neutral-to-positive.** Lesson: *QAT must
 deployment quantizer, not a proxy* — an obvious-in-hindsight principle the field routinely
 violates.
 
+**And the KV-cache leg is free.** Repeating native QAT with KV *also* in NVFP4
+(`kv_cache_quant_algo=NVFP4`, everything 4-bit) deploys at **9.7052** — statistically tied
+with W4A4's 9.7086 (KV4 cost ≈ 0), still beating the old W4A4 deploy (9.94) and the
+fake-quant W4A4KV4 estimate (9.791). Deployable end state: **4-bit weights + 4-bit
+activations + 4-bit KV cache at 9.71 PPL** (FP16 9.358), trained on the exact grid that
+ships — the long-context KV-memory win essentially for free.
+
 **Throughput — the regime is everything.** Real FP4 kernels, same GPU:
 - *TinyLlama serving* (vLLM, FlashInfer NVFP4 kernel): FP4 is **3.4–4.8× slower** than BF16
   (b1 609 vs 2934 tok/s … b256 85.6k vs 289k). At 1.1B the matmuls are too small to fill
@@ -547,6 +554,7 @@ reframing), not around "yet another quantization method."
 | 19 | **FP4 GEMM vs BF16 on sm_120** | **3.7× at 70B-layer shapes; slower at 1.1B** | FP4 speed is a large-GEMM property, not intrinsic |
 | 20 | **Low-rank fp8 correction of the NVFP4 *weight* residual** | **dead: rank-128 recovers only 7-13%** | microscaling whitens the residual → no post-hoc weight fix; QAT is the only admissible weight lever |
 | 21 | **QAT natively on ModelOpt's own quantizer (train==deploy)** | **deployed 9.94 → 9.709** (beats fake-quant too) | the sim-to-deploy gap is a proxy-quantizer artifact; QAT must use the *deployment* quantizer |
+| 22 | **Native QAT with everything 4-bit (W4A4KV4, kv_cache=NVFP4)** | **deployed 9.705 — ties W4A4** | the KV-cache 4-bit leg is *free* under native QAT; long-context memory win at no accuracy cost |
 
 ---
 
