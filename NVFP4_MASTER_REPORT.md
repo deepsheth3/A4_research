@@ -470,6 +470,17 @@ fake-quant W4A4KV4 estimate (9.791). Deployable end state: **4-bit weights + 4-b
 activations + 4-bit KV cache at 9.71 PPL** (FP16 9.358), trained on the exact grid that
 ships — the long-context KV-memory win essentially for free.
 
+**The Pareto-clean 4-bit floor is ~9.71 (+0.32 over FP8), and it is fundamental.** We tried
+to push all-4-bit down to the FP8 line (9.388) with accuracy-only, fold-away levers. Three
+independent principled methods converge to the same wall: native QAT **9.709**, +KV4
+**9.705**, +AWQ equalization **9.707** (AWQ adds *nothing* over QAT — the two-lever theorem
+confirming itself: QAT already captures the recoverable structure). The gap to FP8 is
+irreducible because **FP8 is ~lossless (9.388 vs FP16 9.358), so matching it means
+*lossless* 4-bit**, and the runtime activation+KV quantization error is a floor QAT cannot
+remove (it only makes *weights* robust). Crossing it requires trading the very axes we hold
+at FP8 parity — mixed precision (spends memory) or W4A16 (drops the activation/KV compute
+win). So the honest end state is a *characterized floor*, not FP8 parity for all-4-bit.
+
 **Throughput — the regime is everything.** Real FP4 kernels, same GPU:
 - *TinyLlama serving* (vLLM, FlashInfer NVFP4 kernel): FP4 is **3.4–4.8× slower** than BF16
   (b1 609 vs 2934 tok/s … b256 85.6k vs 289k). At 1.1B the matmuls are too small to fill
@@ -555,6 +566,7 @@ reframing), not around "yet another quantization method."
 | 20 | **Low-rank fp8 correction of the NVFP4 *weight* residual** | **dead: rank-128 recovers only 7-13%** | microscaling whitens the residual → no post-hoc weight fix; QAT is the only admissible weight lever |
 | 21 | **QAT natively on ModelOpt's own quantizer (train==deploy)** | **deployed 9.94 → 9.709** (beats fake-quant too) | the sim-to-deploy gap is a proxy-quantizer artifact; QAT must use the *deployment* quantizer |
 | 22 | **Native QAT with everything 4-bit (W4A4KV4, kv_cache=NVFP4)** | **deployed 9.705 — ties W4A4** | the KV-cache 4-bit leg is *free* under native QAT; long-context memory win at no accuracy cost |
+| 23 | **AWQ (equalization) + native QAT, chasing FP8** | **9.707 — no gain over QAT; floor at ~9.71** | equalization is redundant with QAT; 3 levers converge → Pareto-clean all-4-bit floor is +0.32 over FP8 (irreducible activation/KV error) |
 
 ---
 
