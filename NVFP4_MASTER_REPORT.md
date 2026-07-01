@@ -535,6 +535,7 @@ reframing), not around "yet another quantization method."
 | 17 | KV4 additive correction | real but not byte-legal | KV4 is the smallest, least-deployable leg |
 | 18 | **QAT→ModelOpt export→deploy on real Blackwell** | **9.766 QAT; 9.94 deployed (+0.18)** | export preserves most, not all, of the QAT gain |
 | 19 | **FP4 GEMM vs BF16 on sm_120** | **3.7× at 70B-layer shapes; slower at 1.1B** | FP4 speed is a large-GEMM property, not intrinsic |
+| 20 | **Low-rank fp8 correction of the NVFP4 *weight* residual** | **dead: rank-128 recovers only 7-13%** | microscaling whitens the residual → no post-hoc weight fix; QAT is the only admissible weight lever |
 
 ---
 
