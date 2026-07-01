@@ -51,6 +51,12 @@ that itself is a clean, theorem-backed result. The remaining quality lives in **
 FP16-quality output at 4-bit economics. We compete on **accuracy-per-byte and
 acceptance-per-byte**, *not* raw single-stream speed (measured: stock FP4 ≈ FP8 at 8B).
 
+**Real-hardware validation (§13.5).** The full QAT→ModelOpt-export→deploy path ran
+end-to-end on an RTX PRO 6000 (sm_120): QAT reproduced 9.766 PPL (70% gap closed), produced
+a real loadable NVFP4 checkpoint (deployed 9.94 PPL), and real FP4 GEMM measured **3.7×
+faster than BF16 at 70B-layer shapes** (but slower at TinyLlama shapes — the speed win is a
+large-GEMM property).
+
 ---
 
 ## 1. Setup & notation
@@ -432,10 +438,47 @@ published TRT-LLM NVFP4 numbers. The 1.8× speedup uses an assumed cost_ratio.
 
 ---
 
+## 13.5 Real-hardware validation (2026-07-01, RTX PRO 6000 box run)
+
+A one-shot rented Blackwell box (vast.ai RTX PRO 6000, sm_120, torch 2.12/cu130) took the
+pipeline end-to-end for the first time: QAT → ModelOpt NVFP4 export → deploy → measure.
+
+**Accuracy reproduced on real hardware.** TinyLlama, 3000-step KL-QAT: FP16 9.358 / PTQ
+10.734 / **QAT 9.766 (70.3% gap closed)**, acceptance 0.825→0.865 — matches the banked
+9.768/70%.
+
+**Deployed NVFP4 (ModelOpt `export_hf_checkpoint`) = 9.94 PPL.** A genuine, TRT-LLM/
+vLLM-loadable checkpoint (770 MB, `quant_algo=NVFP4`, group_size 16, `exclude_modules=
+[lm_head]`). Honest caveat: the deploy grid costs **+0.18 PPL vs fake-quant** — the CPU
+grid-parity check covered weights but not ModelOpt's activation calibration, and the QAT
+weights were tuned to *our* fake-quantizer. Deployed QAT still closes ~58% of the gap.
+
+**Throughput — the regime is everything.** Real FP4 kernels, same GPU:
+- *TinyLlama serving* (vLLM, FlashInfer NVFP4 kernel): FP4 is **3.4–4.8× slower** than BF16
+  (b1 609 vs 2934 tok/s … b256 85.6k vs 289k). At 1.1B the matmuls are too small to fill
+  the FP4 cores and dequant overhead dominates.
+- *Large GEMM* (`cutlass_scaled_fp4_mm`, Llama-70B-layer shapes 8192–28672): FP4 is
+  **3.2–3.8× faster** than BF16 (~1555 vs ~424 TFLOPS, relerr ~0.13). Same kernel — the
+  only variable is matrix size. **FP4's speed win is a big-model / large-GEMM property;**
+  a toy model cannot show it.
+
+**Two corrections to earlier claims** (recorded for honesty): "ModelOpt export can't lose
+accuracy" was optimistic (it costs +0.18); "FP4 throughput is dead on sm_120" was wrong
+(vLLM's FlashInfer kernel works — the failure was pinning torch, which forced an ancient
+vLLM; torchao 0.17 separately *emulates* FP4 on this stack).
+
+Artifacts: `results/box_run/20260701_222113/` (SUMMARY, all logs, checkpoint config);
+harness: `setup_box.sh`, `run_the_box.sh`, `export_nvfp4.py`, `measure_deploy.py`,
+`fp4_gemm_bench_flashinfer.py`.
+
+---
+
 ## 14. Honest limitations & what's unproven
 
-- **Fake-quant simulation.** All accuracy runs are numerical fake-quant on Hopper/Blackwell;
-  NVFP4 throughput is *projected* except the one B200 vLLM measurement.
+- **Fake-quant simulation** (mostly). Accuracy runs are numerical fake-quant; **now
+  partly superseded** — §13.5 ran a real ModelOpt NVFP4 checkpoint on an RTX PRO 6000
+  (deployed 9.94 PPL) and measured real FP4 GEMM throughput (3.7× vs BF16 at scale). Big-
+  model *end-to-end* FP4 serving is still unmeasured (box was TinyLlama-scale + one-shot).
 - **Idealized theory.** (A1) is a high-resolution idealization; finite K=16, heuristic α,
   per-layer surrogate Hessians, diagonal-G approximations are all first-order.
 - **Time-boxed 8B QAT** (512 ctx, ≤rank 32) — 1024 ctx / rank 64 untried.
@@ -490,6 +533,8 @@ reframing), not around "yet another quantization method."
 | 15 | Subset (half-layer) 8B QAT | null | frozen half uncorrectable |
 | 16 | **LoRA-QAT for 8B** | **46% closed, fits 66GB** | adapters: small enough to fit, complete enough to work |
 | 17 | KV4 additive correction | real but not byte-legal | KV4 is the smallest, least-deployable leg |
+| 18 | **QAT→ModelOpt export→deploy on real Blackwell** | **9.766 QAT; 9.94 deployed (+0.18)** | export preserves most, not all, of the QAT gain |
+| 19 | **FP4 GEMM vs BF16 on sm_120** | **3.7× at 70B-layer shapes; slower at 1.1B** | FP4 speed is a large-GEMM property, not intrinsic |
 
 ---
 
@@ -513,6 +558,10 @@ projected **1.85×**.
 
 **Throughput (measured B200):** stock FP4 *ties* FP8 (parity ~batch 64) → compete on
 **accuracy/byte + acceptance/byte + memory**, not raw speed.
+
+**Real Blackwell run (RTX PRO 6000, §13.5):** QAT 9.766 (70%) reproduced on hardware;
+deployed NVFP4 checkpoint 9.94 (+0.18 export cost); real FP4 GEMM **3.7× vs BF16 at
+70B-layer shapes**, slower at TinyLlama shapes (speed win needs big GEMMs).
 
 **TRT-LLM:** QAT'd NVFP4 = drop-in checkpoint, no custom kernels; dequant + RMSNorm-quant +
 RoPE/attention all fuse. The correction stack would need bespoke kernels — which is *why* QAT
