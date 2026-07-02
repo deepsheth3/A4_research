@@ -1,0 +1,27 @@
+{
+  "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "w4a4": true,
+  "steps": 3500,
+  "lr": 3e-05,
+  "objective": "kl",
+  "eq_fold": true,
+  "mx_block": 16,
+  "kv4": true,
+  "qjl_dim": 64,
+  "fp16_ppl": 9.3576,
+  "ptq": {
+    "ppl": 10.5892,
+    "alpha": 0.8319,
+    "greedy": 0.8065
+  },
+  "train_seconds": 1033.5,
+  "qat": {
+    "ppl": 9.7909,
+    "alpha": 0.8612,
+    "greedy": 0.8427
+  },
+  "ppl_recovered": 0.7983,
+  "alpha_gain": 0.0293,
+  "gap_closed_frac": 0.648,
+  "verdict": "QAT WINS \u2014 recovers the PTQ gap"
+}

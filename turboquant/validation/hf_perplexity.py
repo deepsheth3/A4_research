@@ -387,49 +387,80 @@ def _precompute_aux(model, mx_block: int, device, need_basis: bool, need_comp: b
 
 
 _EQ_ALPHAS = (0.25, 0.5, 0.75)
+# Rows stashed per layer to choose the equalization strength. 128 (first window only)
+# was too few to robustly tell which channels are the real outliers; we accumulate
+# across windows so the alpha-pick sees a representative activation sample. At block
+# 32 this matters more — a coarser block lets one outlier channel poison 32 elements.
+_EQ_SAMPLE_ROWS = 2048
 
 
-def _pick_eq_scale(sample: torch.Tensor, amax: torch.Tensor, block: int) -> torch.Tensor:
+def _pick_eq_scale(sample: torch.Tensor, amax: torch.Tensor, block: int,
+                   weight: torch.Tensor | None = None) -> torch.Tensor:
     """Pick the per-layer equalization strength alpha that minimizes actual
-    quantization error on a stashed activation sample (offline)."""
+    quantization error on a stashed activation sample (offline).
+
+    ``weight=None`` (default): activation-only objective — the original behaviour
+    used by the A4 codec path. ``weight`` given (W4A4 QAT): also charge the WEIGHT
+    quantization error that eq induces by folding ``s`` into the weight columns
+    (``W -> W*s``), and allow ``alpha=0`` (no eq). Without this the picker smooths
+    activations at the expense of blowing up W4 — the 35k/31-ppl failure mode."""
+    alphas = _EQ_ALPHAS if weight is None else (0.0,) + _EQ_ALPHAS
     best_s = best_e = None
-    for alpha in _EQ_ALPHAS:
+    for alpha in alphas:
         s = amax.clamp_min(1e-5) ** alpha
         e = ((sample - nvfp4_quantize_zp(sample / s, block=block, optclip=True) * s) ** 2).sum()
+        if weight is not None:
+            # normalize so act/weight errors are comparable, then add the weight leg
+            e = e / sample.pow(2).sum().clamp_min(1e-12)
+            ws = weight * s                                   # (out,in) * (in,) input-col fold
+            ew = ((ws - nvfp4_quantize_zp(ws, block=block, optclip=True)) ** 2).sum()
+            e = e + ew / ws.pow(2).sum().clamp_min(1e-12)
         if best_e is None or e < best_e:
             best_s, best_e = s, e
     return best_s
 
 
 @torch.no_grad()
-def calibrate_eq_scales(model, calib_ids, max_len: int, device, mx_block: int = 16) -> dict:
+def calibrate_eq_scales(model, calib_ids, max_len: int, device, mx_block: int = 16,
+                        weight_aware: bool = False) -> dict:
     """Per-channel absmax over a few calibration windows -> equalization scales.
 
     s_i = amax_i^alpha (SmoothQuant-style), with alpha chosen *per layer* from
     ``_EQ_ALPHAS`` by measured quantization error on a stashed sample. Offline
     in deploy — s folds into the producing layer's weights, zero inference cost.
+
+    ``weight_aware=True`` (W4A4 QAT): also charge the weight-quant error eq induces,
+    so a layer can pick a gentler alpha or no eq when smoothing activations would
+    blow up W4. Default False preserves the A4-codec behaviour for other callers.
     """
     print("  calibrating per-channel eq scales (offline)...", end=" ", flush=True)
     t0 = time.time()
     amax: dict = {}
     samples: dict = {}
+    weights: dict = {}
     handles = []
     for i, m in enumerate(mod for mod in model.modules() if _is_linear(mod)):
+        if weight_aware:
+            weights[i] = m.weight.detach().float()
         def make(idx):
             def h(module, args):
                 x = args[0].detach().float()
                 flat = x.reshape(-1, x.shape[-1])
                 a = flat.abs().amax(dim=0)
                 amax[idx] = torch.maximum(amax[idx], a) if idx in amax else a
-                if idx not in samples:
-                    samples[idx] = flat[:128].clone()
+                cur = samples.get(idx)
+                if cur is None:
+                    samples[idx] = flat[:_EQ_SAMPLE_ROWS].clone()
+                elif cur.shape[0] < _EQ_SAMPLE_ROWS:
+                    take = flat[: _EQ_SAMPLE_ROWS - cur.shape[0]].clone()
+                    samples[idx] = torch.cat([cur, take], dim=0)
             return h
         handles.append(m.register_forward_pre_hook(make(i)))
     for begin in range(0, calib_ids.size(1), max_len):
         model(calib_ids[:, begin:begin + max_len].to(device))
     for h in handles:
         h.remove()
-    scales = {i: _pick_eq_scale(samples[i], a, mx_block) for i, a in amax.items()}
+    scales = {i: _pick_eq_scale(samples[i], a, mx_block, weights.get(i)) for i, a in amax.items()}
     print(f"done ({len(scales)} layers, {time.time() - t0:.1f}s)", flush=True)
     return scales
 
@@ -689,6 +720,8 @@ def main():
     ap.add_argument("--w4-rank-alloc", action="store_true",
                     help="water-fill the low-rank budget across layers by sensitivity (same total cost)")
     ap.add_argument("--modes", nargs="+", default=["fp16", "fp8", "nvfp4_raw", "turboquant"])
+    ap.add_argument("--mx-block", type=int, default=16,
+                    help="MX4 microscaling group size (default 16 = NVFP4 spec; try 32/64 with eq)")
     args = ap.parse_args()
 
     from datasets import load_dataset
@@ -731,13 +764,16 @@ def main():
                         return_tensors="pt").input_ids[:, : 4 * args.max_len]
         model = load_model().to(device).eval()
         if need_eq:
-            eq_scales = calibrate_eq_scales(model, calib_ids, args.max_len, device)
+            eq_scales = calibrate_eq_scales(model, calib_ids, args.max_len, device,
+                                            mx_block=args.mx_block)
         if need_mask:
             hwht_winrates = calibrate_hwht_winrates(model, calib_ids, args.max_len,
-                                                    device, eq_scales=eq_scales)
+                                                    device, mx_block=args.mx_block,
+                                                    eq_scales=eq_scales)
         if need_perm:
             channel_perms = calibrate_channel_perm(model, calib_ids, args.max_len,
-                                                   device, eq_scales=eq_scales)
+                                                   device, mx_block=args.mx_block,
+                                                   eq_scales=eq_scales)
         del model
 
     hessians = None
@@ -754,7 +790,8 @@ def main():
         if device == "cuda":
             torch.cuda.empty_cache()
 
-    cfg = TurboQuantConfig(qjl_block=args.qjl_block, qjl_dim=args.qjl_dim, use_polarquant=False)
+    cfg = TurboQuantConfig(mx_block=args.mx_block, qjl_block=args.qjl_block,
+                           qjl_dim=args.qjl_dim, use_polarquant=False)
     results = {}
     for mode in args.modes:
         model = load_model().to(device).eval()
