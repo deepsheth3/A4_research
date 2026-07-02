@@ -13,6 +13,7 @@ import modelopt.torch.quantization as mtq
 from modelopt.torch.export import export_hf_checkpoint
 from turboquant.validation.hf_perplexity import perplexity
 from turboquant.validation.export_nvfp4 import build_quant_cfg
+from turboquant.validation.acceptance import acceptance_stats
 
 MODEL = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 DEV = "cuda"
@@ -37,22 +38,53 @@ ppl_ids = tok("\n\n".join(test["text"]), return_tensors="pt").input_ids[:, :4000
 def win(ids, k):
     return ids[:, k * L:(k + 1) * L].to(DEV)
 
+@torch.no_grad()
+def eval_accept(n=8):
+    """Spec-decode acceptance (alpha = 1-TV) and greedy agreement of the quantized
+    student vs the FP16 teacher — the metric that actually decides the deployment win."""
+    a = g = 0.0
+    for k in range(n):
+        x = win(ppl_ids, k)
+        t = teacher(x).logits[:, :-1, :].reshape(-1, V)
+        d = student(x).logits[:, :-1, :].reshape(-1, V)
+        ai, gi = acceptance_stats(d, t)
+        a += ai; g += gi
+    return round(a / n, 4), round(g / n, 4)
+
 # 1) install ModelOpt NVFP4 quantizers (STE) + calibrate
 calib = [win(tr_ids, k) for k in range(32)]
 def floop(m):
     with torch.no_grad():
         for b in calib:
             m(b)
-cfg = build_quant_cfg(mtq.NVFP4_DEFAULT_CFG, kv_cfg=mtq.NVFP4_KV_CFG if KV4 else None)
-print(f"calibrating + installing ModelOpt NVFP4 quantizers (KV4={KV4}, steps={STEPS})...", flush=True)
+CFG_NAME = os.environ.get("CFG", "NVFP4_DEFAULT_CFG")   # e.g. NVFP4_AWQ_LITE_CFG (equalization)
+base_cfg = getattr(mtq, CFG_NAME)
+cfg = build_quant_cfg(base_cfg, kv_cfg=mtq.NVFP4_KV_CFG if KV4 else None)
+print(f"calibrating + installing {CFG_NAME} (KV4={KV4}, steps={STEPS})...", flush=True)
 mtq.quantize(student, cfg, floop)
 
 fp16 = perplexity(teacher, ppl_ids, L, L, DEV)
 ptq = perplexity(student, ppl_ids, L, L, DEV)   # PTQ on the DEPLOY grid
-print(f"FP16 {fp16:.4f} | PTQ(deploy-grid) {ptq:.4f}", flush=True)
+a_ptq, g_ptq = eval_accept()                     # acceptance BEFORE training
+print(f"FP16 {fp16:.4f} | PTQ(deploy-grid) {ptq:.4f} | PTQ accept alpha={a_ptq} greedy={g_ptq}", flush=True)
 
-# 2) QAT: train the weights to survive ModelOpt's own quantizer
-opt = torch.optim.AdamW([p for p in student.parameters() if p.requires_grad], lr=3e-5)
+# 2) QAT: train the weights to survive ModelOpt's own quantizer.
+#    cosine LR with warmup — converges to a lower basin than constant LR.
+LR = float(os.environ.get("LR", 3e-5))
+# Train ONLY the model weights — leave quantizer / AWQ pre_quant_scale params FIXED
+# (from calibration). Training the equalization scales destroys them (divergence).
+trainable = [p for n, p in student.named_parameters()
+             if p.requires_grad and all(k not in n for k in
+             ("quantizer", "_scale", "pre_quant", "input_quant", "weight_quant"))]
+print(f"training {len(trainable)} weight tensors (quantizer/AWQ-scale params frozen)", flush=True)
+opt = torch.optim.AdamW(trainable, lr=LR)
+warmup = 100
+def lr_at(s):
+    if s < warmup:
+        return (s + 1) / warmup
+    import math as _m
+    return 0.5 * (1 + _m.cos(_m.pi * (s - warmup) / max(1, STEPS - warmup)))
+sched = torch.optim.lr_scheduler.LambdaLR(opt, lr_at)
 nwin = tr_ids.size(1) // L
 best = ptq
 t0 = time.time()
@@ -63,7 +95,7 @@ for s in range(STEPS):
         t = teacher(x).logits.float().reshape(-1, V)
     out = student(x).logits.float().reshape(-1, V)
     loss = F.kl_div(F.log_softmax(out, -1), F.softmax(t, -1), reduction="batchmean")
-    opt.zero_grad(); loss.backward(); opt.step()
+    opt.zero_grad(); loss.backward(); opt.step(); sched.step()
     if (s + 1) % 500 == 0:
         student.eval()
         p = perplexity(student, ppl_ids, L, L, DEV)
@@ -74,8 +106,11 @@ for s in range(STEPS):
 
 student.eval()
 final = perplexity(student, ppl_ids, L, L, DEV)
+a_qat, g_qat = eval_accept()                      # acceptance AFTER training (the win metric)
 print(f"\n*** ModelOpt-NATIVE QAT: deployed PPL = {final:.4f}  (best {best:.4f}) | "
       f"FP16 {fp16:.4f} | PTQ {ptq:.4f} | gap closed {(ptq-final)/(ptq-fp16):.3f} ***", flush=True)
-print("train==deploy: this PPL IS the deployed accuracy (no sim-to-real gap).", flush=True)
+print(f"*** ACCEPTANCE (the spec-decode win metric): {a_ptq} -> {a_qat}  "
+      f"(greedy {g_ptq} -> {g_qat}) ***", flush=True)
+print("train==deploy: these numbers ARE the deployed model's (no sim-to-real gap).", flush=True)
 export_hf_checkpoint(student, dtype=torch.bfloat16, export_dir=OUT)
 print(f"exported -> {OUT}", flush=True)
