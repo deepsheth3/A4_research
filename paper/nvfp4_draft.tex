@@ -11,9 +11,9 @@
 \newcommand{\E}{\mathbb{E}}
 \newcommand{\tr}{\operatorname{tr}}
 
-\title{Microscaling Redundancy: Two Corrections Suffice for\\
-NVFP4 Post-Training Quantization, with Application to\\
-4-bit Draft Models for Speculative Decoding}
+\title{Microscaling Redundancy and the Post-Training Floor:\\
+Quantization-Aware Training Closes the Rest of the\\
+NVFP4 Accuracy Gap}
 
 \author{Deep Sheth}
 \date{June 2026}
@@ -22,33 +22,29 @@ NVFP4 Post-Training Quantization, with Application to\\
 \maketitle
 
 \begin{abstract}
-NVFP4, the E2M1 grid with a per-16-element FP8 block scale, is the native 4-bit
-format of Blackwell GPUs, and a substantial literature attempts to close its accuracy
-gap to FP8 using input rotations, channel permutations, salient-channel scaling,
-coordinated rounding, and per-layer rank allocation. We study why many of these give
-little marginal benefit once the format already applies a per-block scale. Under the
-microscaling quantizer with a high-resolution white-error approximation, the output
-distortion of a linear layer is well described by a sum over blocks whose only
-adjustable quantities are the per-block input maxima and the residual subspace. This
-suggests two first-order levers: per-channel equalization, which lowers the block
-maxima, and an additive low-rank correction of the quantization residual. We show
-empirically in a post-training setting that after equalization the additive correction
-provides substantially more improvement than the remaining multiplicative transforms;
-a rotation still contributes a small residual gain, several times smaller than the
-additive correction, which is consistent with equalization moving each block toward
-the Gaussian regime under which a rotation is close to neutral. A codec built from the two levers reaches 6.05 perplexity with 4-bit
-activations on Llama-3.1-8B, against 5.948 for FP8, and 6.36 with 4-bit weights,
-activations, and KV cache simultaneously, with weight storage below one byte per
-parameter under our side-channel accounting. We then study
-the quantized model as a draft for speculative decoding, where the target model
-verifies every token, so quantization loss reduces the acceptance rate rather than the
-output quality. The 4-bit draft accepts 88.9\% of tokens against the FP16 target,
-which corresponds to about three accepted draft tokens and four emitted tokens per
-verification step. Finally, we report measured Blackwell throughput showing that the
-speed advantage of NVFP4 over FP8 appears only at large batch size, and that at
-single-stream decoding the two formats are within ten percent, so a 4-bit method of
-this kind is best evaluated on accuracy and acceptance per byte rather than on
-single-stream speed.
+NVFP4, the E2M1 grid with a per-16-element FP8 block scale, is the native 4-bit format
+of Blackwell GPUs. Many methods try to close its accuracy gap to FP8 with rotations,
+permutations, scaling heuristics, and rank allocation; most contribute little once the
+format already applies a per-block scale. A high-resolution white-error model shows the
+output distortion of a linear layer depends only on the per-block maxima and the
+residual subspace, pointing to two levers: per-channel equalization and additive
+low-rank correction. After equalization, additive correction gives most of the
+remaining gain; a rotation adds a small residual benefit, several times smaller. A codec
+built from these two levers reaches 6.05 perplexity with 4-bit activations on
+Llama-3.1-8B (FP8: 5.948), and 6.36 with weights, activations, and the KV cache all at
+4-bit, under one byte per weight. This post-training codec sits at a floor set by a
+near-white residual, which motivates training the model directly against the deployment
+quantizer. Quantization-aware training (QAT), using the
+exact quantizer that ships, closes 70\% of the W4A4 gap on TinyLlama-1.1B and reproduces
+on real Blackwell hardware with no sim-to-deploy gap (9.709 deployed, FP16 9.358; a
+4-bit KV cache costs nothing further, 9.705). QAT, QAT with a 4-bit KV cache, and QAT
+with added equalization converge to the same floor, 0.32 above FP8, which we argue is
+fundamental: FP8 is already nearly lossless, and training the weights cannot remove the
+runtime activation and KV quantization noise that remains. The result is a 4-bit model
+deployable on its own; we also evaluate it as a speculative-decoding draft (88.9\%
+acceptance against an FP16 target). Measured Blackwell throughput shows NVFP4's speed
+edge over FP8 only at large batch size, so such methods are best judged on accuracy per
+byte and memory rather than single-stream speed.
 \end{abstract}
 
 \section{Introduction}
@@ -66,18 +62,25 @@ applied on top of microscaling and after equalization, the marginal improvement 
 small. This paper offers an explanation under a stated approximation and uses it to
 construct a compact codec.
 
-We make four contributions. First, we give an approximate distortion model for the
+This paper makes four main contributions, plus a fifth on where the approach runs out
+of room. Section~\ref{sec:theory} gives an approximate distortion model for the
 microscaling quantizer and a proposition identifying two first-order levers,
-equalization and additive low-rank correction, together with empirical evidence that,
-in our post-training setting after equalization, several rotation, permutation,
+equalization and additive low-rank correction; several rotation, permutation,
 scale-objective, and coordinated-rounding variants we tested contribute little beyond
-these two operations (Section~\ref{sec:theory}). Second, we build a codec from these two
-operations (Section~\ref{sec:method}). Third, we evaluate it on perplexity, ablations
-that the model predicts, four models, the composition of 4-bit weights, activations,
-and KV cache, and a draft-model acceptance measurement (Section~\ref{sec:exp}). Fourth,
-we report measured Blackwell throughput and discuss the resulting positioning of the
-method (Section~\ref{sec:limits}). We are explicit throughout about which claims rest
-on the approximation and which experiments remain to be run.
+these two operations once equalization has been applied. Section~\ref{sec:method}
+builds a codec from these two operations, and Section~\ref{sec:exp} evaluates it on
+perplexity, on the ablations the model predicts, on four models, and on the composition
+of 4-bit weights, activations, and KV cache. The post-training codec sits at a floor set
+by a residual that is already close to white, which is where Section~\ref{sec:qat}
+picks up: training the model directly against the deployment quantizer (QAT) keeps
+paying off where post-hoc correction cannot, closing 70\% of the remaining W4A4 gap on
+TinyLlama-1.1B, reproducing end to end on real Blackwell hardware with no
+sim-to-deploy gap, and converging to a characterized all-4-bit floor across three
+independently motivated methods. The outcome, at each scale tested, is a 4-bit model
+deployable on its own, which we additionally measure as a speculative-decoding draft.
+Section~\ref{sec:limits} reports measured Blackwell throughput and discusses what that
+implies for how the method should be positioned. Throughout, we try to be clear about
+which claims rest on the approximation and which experiments are still open.
 
 \section{Background and NVFP4 semantics}\label{sec:bg}
 A block $B$ of $K=16$ elements is quantized as
@@ -142,14 +145,14 @@ transform reduces this ratio for heavy-tailed blocks (from $14.5$ to $3.5$ in ou
 measurements) and increases it for sub-Gaussian blocks (from $1.2$ to $4.5$). After
 equalization the blocks sit closer to the Gaussian regime, which is consistent with the
 small marginal effect of rotations and permutations we observe in
-Section~\ref{sec:exp}. This is an empirical regularity under our settings, not a claim
-that rotations cannot help in other regimes; learned rotations have been reported to
-help in related settings \cite{liu2024spinquant}.
+Section~\ref{sec:exp}. This is an empirical regularity under our settings, not a
+universal law; rotations may well help in other regimes, and learned rotations have
+been reported to do so \cite{liu2024spinquant}.
 \end{observation}
 
 \begin{observation}[Additive low-rank targets the residual]\label{obs:lr}
 The minimum-distortion rank-$k$ correction of the residual in the $G$ metric is the
-top-$k$ Karhunen--Lo\`eve transform of the residual covariance
+top-$k$ Karhunen-Lo\`eve transform of the residual covariance
 $\Sigma_r = W\,\E[ee^\top]\,W^\top$, which is the additive form used by low-rank error
 reconstruction \cite{zhang2024lqer}. No input transform produces this additive term,
 and a one-bit sign-projection relaxation recovers part of it at low storage cost.
@@ -166,11 +169,11 @@ contributes a small residual gain, but it is several times smaller than the gain
 additive correction (Section~\ref{sec:exp}).
 \end{proposition}
 
-We state Proposition~\ref{prop:main} as a description of the approximate model together
-with an empirical claim about our setting, not as an optimality theorem. We do not claim
-that rotation is useless after equalization; we measure a small residual benefit from
-rotation that is consistent with reports that learned rotations help
-\cite{liu2024spinquant}, and we find that additive correction dominates it. Recent
+Proposition~\ref{prop:main} describes the approximate model together with an empirical
+claim about our setting; it is not an optimality theorem. Rotation is not useless after
+equalization: we measure a small residual benefit that is consistent with reports that
+learned rotations help \cite{liu2024spinquant}, though additive correction dominates it.
+Recent
 scale-optimization methods report further gains from adjusting block and tensor scales
 \cite{soar2026,fouroversix2025,scalesearch2026}, which we do not evaluate here.
 
@@ -178,7 +181,7 @@ scale-optimization methods report further gains from adjusting block and tensor 
 We implement the two operations. For activations we calibrate per-channel equalization
 scales on a few hundred WikiText windows and fold them so that the runtime applies $x/s$
 and rescales the output. We add a rank-$r$ correction of the residual computed in the
-weight-Hessian metric, followed by a per-128 quantized Johnson--Lindenstrauss (QJL)
+weight-Hessian metric, followed by a per-128 quantized Johnson-Lindenstrauss (QJL)
 sign-projection correction of the remaining residual with projection dimension $64$. For
 activations we use an SVD side-channel of rank $r=d/16$ per layer, chosen to match the
 side-channel bit budget of the QJL projection. For weights we apply GPTQ rounding
@@ -307,10 +310,16 @@ FP8 reference & 1.000 \\
 \end{tabular}
 \end{table}
 
-\subsection{4-bit draft model for speculative decoding}
-When the quantized model is used as a draft, the target model verifies each proposed
-token, so the output distribution is that of the target and quantization loss reduces
-the acceptance rate rather than the output quality. Measured over 9{,}207 tokens against
+\subsection{Additional measurement: speculative-decoding acceptance}
+The codec above is a deployable 4-bit model on its own terms, evaluated by perplexity
+in Tables~\ref{tab:acc} through~\ref{tab:cross}. As one further measurement, not the paper's
+central claim, we evaluate it in the role of a speculative-decoding draft, where the
+target model verifies each proposed token, so the output distribution is that of the
+target and quantization loss reduces the acceptance rate rather than the output
+quality. This is a generic property of any accurate 4-bit model used this way; methods
+that train a draft head specifically for this task, such as Medusa and EAGLE
+(Section~\ref{sec:related}), are a different design point aimed at that task alone.
+Measured over 9{,}207 tokens against
 the FP16 target, the W4A4KV4 draft achieves an acceptance rate of
 $\alpha = 1 - \mathrm{TV} = 0.889$ and greedy agreement of 0.873. With draft block
 length $\gamma=4$, the expected number of accepted draft tokens per verification step is
@@ -347,6 +356,68 @@ block scales, so the larger arithmetic throughput of FP4 is not exercised. The a
 of FP4 therefore depends on large models, mature kernels, and high concurrency. These
 numbers use NVIDIA's stock NVFP4 path rather than our corrected kernel.
 
+\section{Quantization-aware training beyond the post-training floor}\label{sec:qat}
+The results above are a post-training codec: the weights are trained normally and
+quantization is applied afterward. Section~\ref{sec:limits} reports that this codec is
+close to a floor on every leg, and that training a low-rank correction of the residual
+after the fact does not improve on the analytical fit, because the residual is already
+close to white with respect to the weights. If the residual cannot be patched
+after training, the remaining lever is to train the weights themselves against the
+quantizer they will be deployed with, rather than patch them afterward. That lever,
+quantization-aware training (QAT), is what this section is about: it keeps paying off
+where post-hoc correction cannot, and it gives a 4-bit model deployable on its own.
+
+We insert the NVFP4 fake-quantizer into the forward pass with a straight-through
+gradient estimator and distill the quantized student against the FP16 teacher by KL
+divergence. Training must use the same quantizer as deployment: training against a
+proxy quantizer and exporting to a different one reintroduces a gap by construction.
+
+\paragraph{TinyLlama-1.1B.} With FP16 at 9.358 and FP8 at 9.388 (nearly lossless), raw
+post-training W4A4 is 10.734. Training for 3{,}000 steps against a fake quantizer that
+matches the deployment semantics of Section~\ref{sec:bg} reaches 9.768, closing 70\% of
+the W4A4 gap. This reproduces end to end on a real Blackwell GPU (RTX Pro 6000, measured
+9.766).
+
+\paragraph{Removing the sim-to-deploy gap.} Training against a proxy fake-quantizer and
+then exporting to a production quantization toolkit's own quantizer cost an additional
+0.18 perplexity in our setting (deployed 9.94 versus the 9.77 measured during training),
+because the two quantizers differ in details such as calibration and rounding. Training
+natively inside the same quantizer used for export removes this gap by construction: the
+perplexity measured during training is the deployed perplexity. Doing so reaches a
+deployed 9.709, better than both the earlier deployed number and our own training-time
+estimate.
+
+\paragraph{The KV cache is free under QAT, and three methods converge to a floor.}
+Repeating native QAT with the KV cache also quantized to NVFP4 deploys at 9.705,
+statistically tied with the weights-and-activations-only result, so the KV-cache leg
+costs nothing further once QAT is used. Adding per-channel equalization on top of native
+QAT deploys at 9.707, no better than QAT alone. We read this as the two-lever theorem of
+Section~\ref{sec:theory} confirming itself in a different setting: once the model is
+trained to be robust to the quantizer, equalization has nothing left to correct. These
+three independently motivated methods converge to the same value, about 9.71, a gap of
+0.32 over FP8. It is this convergence, more than any single number, that makes us treat
+9.71 as a floor for this model and configuration rather than an artifact of one method.
+
+\paragraph{Why the floor is 0.32 above FP8.} FP8 is itself nearly lossless relative to
+FP16 (9.388 versus 9.358), so matching it requires 4-bit inference that is close to
+lossless as well. QAT makes the weights robust to quantization, but the activations and
+KV cache are still quantized at every forward pass at inference time, and that runtime
+quantization noise is not something training the weights alone can remove. Removing it
+would mean spending back one of the axes currently held at FP8 parity, for instance by
+keeping activations or the KV cache at higher precision, which departs from an
+all-4-bit configuration. This floor characterizes the current configuration; a
+different one might move it.
+
+\paragraph{Scope.} The results in this section are demonstrated at 1.1B-parameter scale.
+We have separately observed that the same recipe applied without modification at 8B
+parameters is harder: full-weight QAT does not fit alongside the FP16 teacher in
+consumer-class GPU memory, and a parameter-efficient variant we tried closes a smaller
+fraction of the gap under a limited training budget. The 1.1B result establishes the
+mechanism; the 8B result shows that scaling the exact recipe is not yet solved. We do
+not include the 8B numbers here because we have not reproduced them with the same
+train-equals-deploy property established in this section, and reporting a number that
+mixes the two would be misleading.
+
 \section{Limitations}\label{sec:limits}
 The full 4-bit configuration is 0.42 perplexity above FP8. The activation codec appears
 near the limit of the lightweight post-training variants we tested, since the
@@ -361,15 +432,20 @@ baseline. On Llama-3.1-8B this gave no improvement over the SVD factors. The rea
 that the weight quantization is already near-lossless with respect to the teacher
 (per-token distillation loss of about $0.013$ nats at the initialization), so the
 remaining W4A4KV4 gap comes from the activation and KV quantization rather than the
-weights. Closing it would require trained correction of the activation path, where the
-residual is close to white, which we leave to future work.
+weights. We separately attempted trained correction of the activation path directly;
+it gave a real but small gain that shrank at longer context (from about $0.10$ to $0.14$
+down to $0.032$ perplexity at 2048 tokens) and the training was fragile, since the
+activation residual is close to white for the same reason the weight factors are.
+Both null and fragile results point the same way: patching a residual after training
+has little room left to work with, which is what motivates training the weights
+directly against the quantizer instead (Section~\ref{sec:qat}).
 
 \paragraph{Baselines.} Table~\ref{tab:levers} compares our codec against raw NVFP4 and a
 QuaRot-style Hadamard rotation under identical semantics and byte budget. We have not yet
 compared against a learned-rotation method \cite{liu2024spinquant}, an external ModelOpt
 NVFP4 checkpoint, or NVFP4 scale-optimization methods \cite{soar2026,fouroversix2025,scalesearch2026} on
-the same eval. Until those are run we do not claim a best-in-class result, only the
-comparisons reported above.
+the same eval. Until those are run, the comparisons reported above are what we can
+defend, not a best-in-class result.
 
 \paragraph{Compute cost.} The activation side-channel is inexpensive, but the weight
 low-rank correction at rank $d/6$ adds approximately $r/m + r/d$ of the main matrix
@@ -381,7 +457,7 @@ ranks trade accuracy for cost. We did not measure deployed latency.
 requires a fused FP4 epilogue in an inference engine such as TensorRT-LLM, and is
 worthwhile only if the epilogue cost stays below the accuracy benefit.
 
-\section{Related work}
+\section{Related work}\label{sec:related}
 Rotation methods \cite{ashkboos2024quarot,liu2024spinquant} remove outliers by spreading
 activation energy across coordinates; our analysis predicts a small effect after
 equalization in our setting, and we treat their gains as a regime question rather than a
@@ -396,23 +472,40 @@ error, and ScaleSearch \cite{scalesearch2026}, which searches block floating-poi
 candidates, report gains from adjusting block and tensor scales, which motivates the
 baseline comparison we leave to future work. Lattice and codebook methods
 \cite{chee2023quip,egiazarian2024aqlm} improve the representation but depart from the
-hardware-native execution path. For speculative decoding we use the two-model
-formulation \cite{leviathan2023speculative}; Medusa \cite{cai2024medusa} and EAGLE
-\cite{li2024eagle} instead train feature-level draft heads, whereas our draft is a
-standalone quantized model, so we report acceptance, the quantity that governs the
-speedup of these schemes.
+hardware-native execution path. Quantization-aware training for low-bit inference is an
+established practice, most visibly in Google's Gemma QAT checkpoints. What
+Section~\ref{sec:qat} contributes is less QAT itself and more the diagnosis of when it
+is needed, once post-hoc correction hits the floor identified in
+Sections~\ref{sec:theory} and~\ref{sec:limits}, and the demonstration that training
+against the deployment quantizer removes the sim-to-deploy gap by construction. For the
+additional speculative-decoding measurement in Section~\ref{sec:exp} we use the
+two-model formulation \cite{leviathan2023speculative}; Medusa \cite{cai2024medusa} and
+EAGLE \cite{li2024eagle} instead train a feature-level draft head specifically for this
+task and are the stronger choice when the only goal is drafting for a fixed target. At
+that narrower task our model is not trying to compete with them: it is a
+general-purpose 4-bit model, evaluated on its own accuracy first, for which draft
+acceptance is one additional measurement rather than the design objective.
 
 \section{Conclusion}
 We have argued that under a high-resolution white-error model of the microscaling
 quantizer, two operations, equalization and additive low-rank correction, capture the
 first-order levers for NVFP4 accuracy, and that in a post-training setting several
-multiplicative and rounding refinements add little after equalization. A codec built
-from these operations is accurate enough to serve as a draft for speculative decoding,
-with 88.9\% acceptance against the FP16 target. Because measured throughput shows no
-single-stream speed advantage for NVFP4 at this scale, we suggest that 4-bit methods of
-this kind be compared on accuracy and acceptance per byte and on memory footprint, and
-we identify the equal-byte baseline study and trained activation-path correction as the
-work needed to turn these measurements into a defensible comparison.
+multiplicative and rounding refinements add little after equalization. This post-training
+codec is deployable on its own and is close to a floor set by a residual that is already
+close to white. Training the model directly against the deployment quantizer (QAT) is
+the lever that continues to pay off past that floor: it closes 70\% of the remaining
+W4A4 gap on TinyLlama-1.1B, reproduces with no sim-to-deploy gap on real Blackwell
+hardware, and, together with a 4-bit KV cache and equalization, converges to a
+characterized all-4-bit floor about 0.32 perplexity above FP8 that we argue is
+fundamental to holding all-4-bit at once rather than an artifact of our specific
+methods. The outcome at each scale we tested is a 4-bit model that stands on its own; as
+one further measurement we evaluate the 8B post-training codec as a speculative-decoding
+draft and find 88.9\% acceptance against the FP16 target. Because measured throughput
+shows no single-stream speed advantage for NVFP4 at this scale, we suggest that 4-bit
+methods of this kind be compared on accuracy per byte and memory footprint rather than
+single-stream speed, and we identify the equal-byte baseline study and scaling the
+train-equals-deploy QAT recipe past 1.1B parameters as the work needed to turn these
+measurements into a defensible comparison.
 
 \begin{thebibliography}{14}
 
