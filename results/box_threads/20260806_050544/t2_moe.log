@@ -1,0 +1,66 @@
+device=cuda dtype=torch.bfloat16 model=allenai/OLMoE-1B-7B-0924
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+W0806 05:11:49.652000 2765 site-packages/torch/utils/_pytree.py:630] <enum 'KernelPreference'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+W0806 05:11:49.666000 2765 site-packages/torch/utils/_pytree.py:630] <enum 'ScaleCalculationMode'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+Loading weights:   0%|          | 0/179 [00:00<?, ?it/s]Loading weights:   2%|▏         | 4/179 [00:00<00:05, 32.57it/s]Loading weights:   9%|▉         | 16/179 [00:00<00:04, 40.22it/s]Loading weights:  15%|█▍        | 26/179 [00:00<00:03, 48.64it/s]Loading weights:  21%|██        | 37/179 [00:00<00:03, 41.40it/s]Loading weights:  27%|██▋       | 48/179 [00:00<00:02, 52.82it/s]Loading weights:  33%|███▎      | 59/179 [00:01<00:02, 51.65it/s]Loading weights:  39%|███▉      | 70/179 [00:01<00:02, 52.74it/s]Loading weights:  42%|████▏     | 76/179 [00:01<00:02, 44.14it/s]Loading weights:  46%|████▌     | 82/179 [00:01<00:02, 40.90it/s]Loading weights:  52%|█████▏    | 93/179 [00:02<00:01, 46.29it/s]Loading weights:  58%|█████▊    | 104/179 [00:02<00:01, 42.80it/s]Loading weights:  64%|██████▍   | 115/179 [00:02<00:01, 43.25it/s]Loading weights:  70%|██████▉   | 125/179 [00:02<00:01, 50.30it/s]Loading weights:  73%|███████▎  | 131/179 [00:02<00:01, 37.52it/s]Loading weights:  77%|███████▋  | 137/179 [00:03<00:01, 33.97it/s]Loading weights:  82%|████████▏ | 147/179 [00:03<00:00, 42.92it/s]Loading weights:  85%|████████▌ | 153/179 [00:03<00:00, 40.06it/s]Loading weights:  88%|████████▊ | 158/179 [00:03<00:00, 40.91it/s]Loading weights:  91%|█████████ | 163/179 [00:03<00:00, 32.70it/s]Loading weights:  94%|█████████▍| 169/179 [00:04<00:00, 34.10it/s]Loading weights:  97%|█████████▋| 173/179 [00:04<00:00, 25.04it/s]Loading weights: 100%|██████████| 179/179 [00:04<00:00, 41.00it/s]
+  experts=64 top_k=8 layers=16
+  found 16 expert modules: model.layers.0.mlp.experts ...
+    window 1/32 (1s)
+    window 2/32 (1s)
+    window 3/32 (1s)
+    window 4/32 (1s)
+    window 5/32 (1s)
+    window 6/32 (1s)
+    window 7/32 (1s)
+    window 8/32 (1s)
+    window 9/32 (1s)
+    window 10/32 (2s)
+    window 11/32 (2s)
+    window 12/32 (2s)
+    window 13/32 (2s)
+    window 14/32 (2s)
+    window 15/32 (2s)
+    window 16/32 (2s)
+    window 17/32 (2s)
+    window 18/32 (2s)
+    window 19/32 (2s)
+    window 20/32 (3s)
+    window 21/32 (3s)
+    window 22/32 (3s)
+    window 23/32 (3s)
+    window 24/32 (3s)
+    window 25/32 (3s)
+    window 26/32 (3s)
+    window 27/32 (3s)
+    window 28/32 (3s)
+    window 29/32 (4s)
+    window 30/32 (4s)
+    window 31/32 (4s)
+    window 32/32 (4s)
+  collected over 32 windows in 3.8s
+
+  model.layers.0.mlp.experts: analyzing 64 experts (dim 2048)
+    tokens/expert: min 592 / median 3819 / max 11928  (dim=2048)
+    experts with FEWER tokens than dimensions: 4/64
+    rank-deficient H: 64/64
+    eff_rank  bottom-quartile 1274  vs  top-quartile 1791   (of 2048)
+
+  model.layers.1.mlp.experts: analyzing 64 experts (dim 2048)
+    tokens/expert: min 1011 / median 3643 / max 10250  (dim=2048)
+    experts with FEWER tokens than dimensions: 1/64
+    rank-deficient H: 64/64
+    eff_rank  bottom-quartile 1973  vs  top-quartile 2047   (of 2048)
+
+  model.layers.10.mlp.experts: analyzing 64 experts (dim 2048)
+    tokens/expert: min 1036 / median 3616 / max 13332  (dim=2048)
+    experts with FEWER tokens than dimensions: 6/64
+    rank-deficient H: 8/64
+    eff_rank  bottom-quartile 1741  vs  top-quartile 2048   (of 2048)
+
+  model.layers.11.mlp.experts: analyzing 64 experts (dim 2048)
+    tokens/expert: min 345 / median 4038 / max 12183  (dim=2048)
+    experts with FEWER tokens than dimensions: 11/64
+    rank-deficient H: 15/64
+    eff_rank  bottom-quartile 1660  vs  top-quartile 2048   (of 2048)
+
+wrote /workspace/NVFP4_Research/results/moe_expert_hessians_allenai_OLMoE-1B-7B-0924.json

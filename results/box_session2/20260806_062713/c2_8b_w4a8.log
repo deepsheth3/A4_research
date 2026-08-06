@@ -1,0 +1,18 @@
+device=cuda dtype=torch.float16 model=unsloth/Meta-Llama-3.1-8B
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
+test tokens: 100000
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:  23%|██▎       | 67/291 [00:00<00:00, 610.68it/s]Loading weights:  45%|████▍     | 130/291 [00:00<00:00, 611.38it/s]Loading weights:  66%|██████▌   | 192/291 [00:00<00:00, 611.31it/s]Loading weights:  87%|████████▋ | 254/291 [00:00<00:00, 590.85it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 635.68it/s]
+  collecting weight Hessians (offline)... done (225 layers, 32 windows, 16.1s)
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:  17%|█▋        | 50/291 [00:00<00:00, 445.85it/s]Loading weights:  37%|███▋      | 109/291 [00:00<00:00, 526.35it/s]Loading weights:  57%|█████▋    | 166/291 [00:00<00:00, 538.95it/s]Loading weights:  76%|███████▋  | 222/291 [00:00<00:00, 543.89it/s]Loading weights:  97%|█████████▋| 283/291 [00:00<00:00, 566.07it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 559.14it/s]
+  fp16         PPL =    6.096   (14.7s)
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:  20%|█▉        | 58/291 [00:00<00:00, 459.08it/s]Loading weights:  42%|████▏     | 121/291 [00:00<00:00, 530.26it/s]Loading weights:  62%|██████▏   | 181/291 [00:00<00:00, 558.10it/s]Loading weights:  84%|████████▍ | 245/291 [00:00<00:00, 580.53it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 557.97it/s]
+  fp8          PPL =    6.122   (23.7s)
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:  11%|█         | 31/291 [00:00<00:00, 296.22it/s]Loading weights:  30%|██▉       | 87/291 [00:00<00:00, 448.31it/s]Loading weights:  51%|█████     | 149/291 [00:00<00:00, 519.81it/s]Loading weights:  72%|███████▏  | 209/291 [00:00<00:00, 540.04it/s]Loading weights:  91%|█████████ | 265/291 [00:00<00:00, 546.12it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 545.18it/s]
+  RTN+lowrank(in/16,fp8)-quantizing weights to NVFP4 (W4)... done (225 layers, 12.0s)
+  nvfp4_raw    PPL =    6.676   (22.0s)
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:  11%|█         | 31/291 [00:00<00:00, 306.04it/s]Loading weights:  32%|███▏      | 94/291 [00:00<00:00, 491.49it/s]Loading weights:  51%|█████     | 148/291 [00:00<00:00, 509.33it/s]Loading weights:  70%|███████   | 204/291 [00:00<00:00, 529.06it/s]Loading weights:  91%|█████████ | 265/291 [00:00<00:00, 557.06it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 551.55it/s]
+  RTN+lowrank(in/16,fp8)-quantizing weights to NVFP4 (W4)... done (225 layers, 12.0s)
+  w4a8         PPL =    6.369   (24.3s)
+
+wrote /workspace/NVFP4_Research/results/perplexity_unsloth_Meta-Llama-3.1-8B.json

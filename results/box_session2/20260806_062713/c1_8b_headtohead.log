@@ -1,0 +1,31 @@
+device=cuda model=unsloth/Meta-Llama-3.1-8B acts=fp8 rank=in/16
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
+eval tokens: 100000
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 15879.25it/s]
+  collecting weight Hessians (offline)... done (225 layers, 32 windows, 15.1s)
+  calibrating per-channel eq scales (offline)... done (225 layers, 5.9s)
+  fp16         PPL =   7.1740
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 14150.89it/s]
+  rtn          PPL =   8.0354   (quant   0.4s, 225 layers)
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 19961.44it/s]
+  gptq         PPL =   7.7445   (quant  78.9s, 225 layers)
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 14958.73it/s]
+  rot_rtn      PPL =   8.4577   (quant   5.4s, 225 layers)
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 15590.42it/s]
+  rot_gptq     PPL =   7.6661   (quant  82.2s, 225 layers)
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 15277.02it/s]
+  ours         PPL =   7.4787   (quant  12.0s, 225 layers)
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 15366.07it/s]
+  ours_rot     PPL =   7.5018   (quant  17.1s, 225 layers)
+
+  {
+    "best_method": "ours",
+    "best_ppl": 7.4787,
+    "ours_minus_rot_gptq": -0.1874,
+    "ours_beats_rot_gptq": true,
+    "rotation_adds_to_ours": -0.0231,
+    "rotation_adds_to_gptq": 0.0784
+  }
+
+wrote /workspace/NVFP4_Research/results/rotation_headtohead_unsloth_Meta-Llama-3.1-8B_fp8.json

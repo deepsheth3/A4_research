@@ -1,0 +1,54 @@
+{
+  "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "acts": "fp8",
+  "rank_div": 16,
+  "results": {
+    "fp16": {
+      "ppl": 8.714591026306152
+    },
+    "rtn": {
+      "ppl": 9.292441368103027,
+      "quant_s": 0.0,
+      "eval_s": 5.5,
+      "layers": 155
+    },
+    "gptq": {
+      "ppl": 9.02845287322998,
+      "quant_s": 23.2,
+      "eval_s": 5.5,
+      "layers": 155
+    },
+    "rot_rtn": {
+      "ppl": 9.826204299926758,
+      "quant_s": 0.5,
+      "eval_s": 5.6,
+      "layers": 155
+    },
+    "rot_gptq": {
+      "ppl": 9.02485466003418,
+      "quant_s": 23.5,
+      "eval_s": 5.6,
+      "layers": 155
+    },
+    "ours": {
+      "ppl": 8.92117977142334,
+      "quant_s": 2.3,
+      "eval_s": 5.5,
+      "layers": 155
+    },
+    "ours_rot": {
+      "ppl": 8.932755470275879,
+      "quant_s": 2.7,
+      "eval_s": 5.6,
+      "layers": 155
+    }
+  },
+  "summary": {
+    "best_method": "ours",
+    "best_ppl": 8.9212,
+    "ours_minus_rot_gptq": -0.1037,
+    "ours_beats_rot_gptq": true,
+    "rotation_adds_to_ours": -0.0116,
+    "rotation_adds_to_gptq": 0.0036
+  }
+}

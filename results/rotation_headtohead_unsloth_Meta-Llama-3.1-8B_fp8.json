@@ -1,0 +1,54 @@
+{
+  "model": "unsloth/Meta-Llama-3.1-8B",
+  "acts": "fp8",
+  "rank_div": 16,
+  "results": {
+    "fp16": {
+      "ppl": 7.174015045166016
+    },
+    "rtn": {
+      "ppl": 8.03544807434082,
+      "quant_s": 0.4,
+      "eval_s": 11.0,
+      "layers": 225
+    },
+    "gptq": {
+      "ppl": 7.744486331939697,
+      "quant_s": 78.9,
+      "eval_s": 11.0,
+      "layers": 225
+    },
+    "rot_rtn": {
+      "ppl": 8.457714080810547,
+      "quant_s": 5.4,
+      "eval_s": 11.5,
+      "layers": 225
+    },
+    "rot_gptq": {
+      "ppl": 7.66608190536499,
+      "quant_s": 82.2,
+      "eval_s": 11.5,
+      "layers": 225
+    },
+    "ours": {
+      "ppl": 7.47867488861084,
+      "quant_s": 12.0,
+      "eval_s": 11.6,
+      "layers": 225
+    },
+    "ours_rot": {
+      "ppl": 7.5018157958984375,
+      "quant_s": 17.1,
+      "eval_s": 11.8,
+      "layers": 225
+    }
+  },
+  "summary": {
+    "best_method": "ours",
+    "best_ppl": 7.4787,
+    "ours_minus_rot_gptq": -0.1874,
+    "ours_beats_rot_gptq": true,
+    "rotation_adds_to_ours": -0.0231,
+    "rotation_adds_to_gptq": 0.0784
+  }
+}

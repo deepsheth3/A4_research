@@ -1,0 +1,66 @@
+device=cuda model=allenai/OLMoE-1B-7B-0924
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/179 [00:00<?, ?it/s]Loading weights:   3%|▎         | 5/179 [00:00<00:04, 39.72it/s]Loading weights:  15%|█▌        | 27/179 [00:00<00:01, 108.23it/s]Loading weights:  27%|██▋       | 49/179 [00:00<00:01, 120.60it/s]Loading weights:  39%|███▉      | 70/179 [00:00<00:00, 139.59it/s]Loading weights:  47%|████▋     | 85/179 [00:00<00:00, 128.45it/s]Loading weights:  58%|█████▊    | 104/179 [00:00<00:00, 127.83it/s]Loading weights:  70%|██████▉   | 125/179 [00:00<00:00, 146.84it/s]Loading weights:  79%|███████▉  | 141/179 [00:01<00:00, 134.95it/s]Loading weights:  88%|████████▊ | 158/179 [00:01<00:00, 139.08it/s]Loading weights:  97%|█████████▋| 173/179 [00:01<00:00, 133.01it/s]Loading weights: 100%|██████████| 179/179 [00:01<00:00, 134.22it/s]
+  found 16 expert modules: model.layers.0.mlp.experts ...
+    window 1/32 (1s)
+    window 2/32 (1s)
+    window 3/32 (1s)
+    window 4/32 (1s)
+    window 5/32 (1s)
+    window 6/32 (2s)
+    window 7/32 (2s)
+    window 8/32 (2s)
+    window 9/32 (2s)
+    window 10/32 (3s)
+    window 11/32 (3s)
+    window 12/32 (3s)
+    window 13/32 (3s)
+    window 14/32 (4s)
+    window 15/32 (4s)
+    window 16/32 (4s)
+    window 17/32 (4s)
+    window 18/32 (4s)
+    window 19/32 (5s)
+    window 20/32 (5s)
+    window 21/32 (5s)
+    window 22/32 (5s)
+    window 23/32 (6s)
+    window 24/32 (6s)
+    window 25/32 (6s)
+    window 26/32 (6s)
+    window 27/32 (7s)
+    window 28/32 (7s)
+    window 29/32 (7s)
+    window 30/32 (7s)
+    window 31/32 (7s)
+    window 32/32 (8s)
+  collected over 32 windows in 7.7s
+
+  model.layers.0.mlp.experts  (64 experts, dim 2048)
+    quantized 64 experts x 4 methods in 6s
+    method          starved-Q err  well-fed-Q err      gap
+    rtn                    0.0756          0.0681   0.0075
+    ours                   0.0427          0.0404   0.0023
+    ours_damp              0.0427          0.0404   0.0023
+    ours_shrink            0.0476          0.0408   0.0068
+    experts where 'ours' is WORSE than plain rtn: 0/64
+
+  model.layers.1.mlp.experts  (64 experts, dim 2048)
+    quantized 64 experts x 4 methods in 3s
+    method          starved-Q err  well-fed-Q err      gap
+    rtn                    0.0878          0.0744   0.0134
+    ours                   0.0572          0.0494   0.0078
+    ours_damp              0.0572          0.0494   0.0078
+    ours_shrink            0.0607          0.0497   0.0110
+    experts where 'ours' is WORSE than plain rtn: 0/64
+
+  model.layers.10.mlp.experts  (64 experts, dim 2048)
+    quantized 64 experts x 4 methods in 5s
+    method          starved-Q err  well-fed-Q err      gap
+    rtn                    0.0825          0.0756   0.0069
+    ours                   0.0467          0.0493  -0.0026
+    ours_damp              0.0467          0.0493  -0.0026
+    ours_shrink            0.0524          0.0497   0.0028
+    experts where 'ours' is WORSE than plain rtn: 0/64
+
+wrote /workspace/NVFP4_Research/results/moe_phase_b_allenai_OLMoE-1B-7B-0924.json

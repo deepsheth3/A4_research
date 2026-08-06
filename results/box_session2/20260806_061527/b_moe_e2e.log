@@ -1,0 +1,59 @@
+device=cuda model=allenai/OLMoE-1B-7B-0924 rank=in/16
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+eval tokens: 200000
+Loading weights:   0%|          | 0/179 [00:00<?, ?it/s]Loading weights:   3%|▎         | 5/179 [00:00<00:04, 37.63it/s]Loading weights:  15%|█▌        | 27/179 [00:00<00:01, 100.48it/s]Loading weights:  27%|██▋       | 49/179 [00:00<00:01, 120.18it/s]Loading weights:  39%|███▉      | 70/179 [00:00<00:00, 146.97it/s]Loading weights:  48%|████▊     | 86/179 [00:00<00:00, 122.90it/s]Loading weights:  58%|█████▊    | 103/179 [00:00<00:00, 133.82it/s]Loading weights:  66%|██████▌   | 118/179 [00:00<00:00, 127.09it/s]Loading weights:  77%|███████▋  | 137/179 [00:01<00:00, 124.30it/s]Loading weights:  89%|████████▉ | 159/179 [00:01<00:00, 131.47it/s]Loading weights: 100%|██████████| 179/179 [00:01<00:00, 132.40it/s]
+  found 16 expert modules: model.layers.0.mlp.experts ...
+    window 1/32 (1s)
+    window 2/32 (1s)
+    window 3/32 (1s)
+    window 4/32 (1s)
+    window 5/32 (1s)
+    window 6/32 (2s)
+    window 7/32 (2s)
+    window 8/32 (2s)
+    window 9/32 (2s)
+    window 10/32 (3s)
+    window 11/32 (3s)
+    window 12/32 (3s)
+    window 13/32 (3s)
+    window 14/32 (4s)
+    window 15/32 (4s)
+    window 16/32 (4s)
+    window 17/32 (4s)
+    window 18/32 (4s)
+    window 19/32 (5s)
+    window 20/32 (5s)
+    window 21/32 (5s)
+    window 22/32 (5s)
+    window 23/32 (6s)
+    window 24/32 (6s)
+    window 25/32 (6s)
+    window 26/32 (6s)
+    window 27/32 (7s)
+    window 28/32 (7s)
+    window 29/32 (7s)
+    window 30/32 (7s)
+    window 31/32 (8s)
+    window 32/32 (8s)
+  collected over 32 windows in 7.7s
+  fp16         PPL =   8.6952
+Loading weights:   0%|          | 0/179 [00:00<?, ?it/s]Loading weights:   3%|▎         | 5/179 [00:00<00:04, 42.28it/s]Loading weights:  15%|█▌        | 27/179 [00:00<00:01, 108.81it/s]Loading weights:  27%|██▋       | 48/179 [00:00<00:00, 139.93it/s]Loading weights:  35%|███▌      | 63/179 [00:00<00:00, 121.26it/s]Loading weights:  46%|████▌     | 82/179 [00:00<00:00, 121.23it/s]Loading weights:  58%|█████▊    | 104/179 [00:00<00:00, 129.20it/s]Loading weights:  70%|██████▉   | 125/179 [00:00<00:00, 147.08it/s]Loading weights:  79%|███████▉  | 141/179 [00:01<00:00, 141.02it/s]Loading weights:  88%|████████▊ | 158/179 [00:01<00:00, 139.63it/s]Loading weights:  97%|█████████▋| 173/179 [00:01<00:00, 129.54it/s]Loading weights: 100%|██████████| 179/179 [00:01<00:00, 133.40it/s]
+  rtn          PPL =   8.8132   (1024 experts, 2s)
+Loading weights:   0%|          | 0/179 [00:00<?, ?it/s]Loading weights:   3%|▎         | 5/179 [00:00<00:04, 36.24it/s]Loading weights:  15%|█▌        | 27/179 [00:00<00:01, 97.22it/s]Loading weights:  27%|██▋       | 49/179 [00:00<00:01, 118.48it/s]Loading weights:  39%|███▉      | 70/179 [00:00<00:00, 142.11it/s]Loading weights:  47%|████▋     | 85/179 [00:00<00:00, 129.08it/s]Loading weights:  58%|█████▊    | 103/179 [00:00<00:00, 140.26it/s]Loading weights:  66%|██████▌   | 118/179 [00:00<00:00, 129.73it/s]Loading weights:  77%|███████▋  | 137/179 [00:01<00:00, 126.36it/s]Loading weights:  89%|████████▉ | 159/179 [00:01<00:00, 129.10it/s]Loading weights: 100%|██████████| 179/179 [00:01<00:00, 132.24it/s]
+  ours         PPL =   8.7579   (1024 experts, 10s)
+Loading weights:   0%|          | 0/179 [00:00<?, ?it/s]Loading weights:   3%|▎         | 5/179 [00:00<00:04, 36.47it/s]Loading weights:  15%|█▍        | 26/179 [00:00<00:01, 119.81it/s]Loading weights:  22%|██▏       | 39/179 [00:00<00:01, 97.71it/s] Loading weights:  34%|███▎      | 60/179 [00:00<00:01, 104.04it/s]Loading weights:  45%|████▌     | 81/179 [00:00<00:00, 131.28it/s]Loading weights:  54%|█████▎    | 96/179 [00:00<00:00, 122.84it/s]Loading weights:  64%|██████▎   | 114/179 [00:00<00:00, 137.36it/s]Loading weights:  72%|███████▏  | 129/179 [00:01<00:00, 120.79it/s]Loading weights:  82%|████████▏ | 147/179 [00:01<00:00, 130.59it/s]Loading weights:  90%|████████▉ | 161/179 [00:01<00:00, 116.20it/s]Loading weights: 100%|██████████| 179/179 [00:01<00:00, 123.13it/s]
+  ours_shrink  PPL =   8.7598   (1024 experts, 10s)
+Loading weights:   0%|          | 0/179 [00:00<?, ?it/s]Loading weights:   3%|▎         | 5/179 [00:00<00:05, 33.32it/s]Loading weights:  15%|█▍        | 26/179 [00:00<00:01, 111.86it/s]Loading weights:  22%|██▏       | 39/179 [00:00<00:01, 97.58it/s] Loading weights:  28%|██▊       | 50/179 [00:00<00:01, 98.85it/s]Loading weights:  39%|███▉      | 70/179 [00:00<00:00, 125.08it/s]Loading weights:  47%|████▋     | 84/179 [00:00<00:00, 111.98it/s]Loading weights:  58%|█████▊    | 104/179 [00:00<00:00, 116.21it/s]Loading weights:  70%|██████▉   | 125/179 [00:01<00:00, 137.19it/s]Loading weights:  78%|███████▊  | 140/179 [00:01<00:00, 122.93it/s]Loading weights:  88%|████████▊ | 158/179 [00:01<00:00, 132.96it/s]Loading weights:  96%|█████████▌| 172/179 [00:01<00:00, 117.83it/s]Loading weights: 100%|██████████| 179/179 [00:01<00:00, 120.42it/s]
+  rot_gptq     PPL =   8.8047   (1024 experts, 119s)
+
+  {
+    "best": "ours",
+    "best_ppl": 8.7579,
+    "fp16": 8.6952,
+    "ours_minus_rot_gptq": -0.0468,
+    "ours_beats_rot_gptq_on_moe": true,
+    "shrinkage_gain": -0.0018,
+    "ours_vs_rtn": 0.0553
+  }
+
+wrote /workspace/NVFP4_Research/results/moe_e2e_allenai_OLMoE-1B-7B-0924.json

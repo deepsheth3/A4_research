@@ -1,0 +1,2064 @@
+{
+  "model": "allenai/OLMoE-1B-7B-0924",
+  "num_experts": 64,
+  "top_k": 8,
+  "calib_tokens": 32768,
+  "layers": {
+    "model.layers.0.mlp.experts": [
+      {
+        "tokens": 2674,
+        "dim": 2048,
+        "top_eig": 23280.75007179381,
+        "eff_rank": 1834,
+        "cond": 81264141.4117805,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2390,
+        "dim": 2048,
+        "top_eig": 25348.157055617005,
+        "eff_rank": 1379,
+        "cond": 5248590721.059059,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2350,
+        "dim": 2048,
+        "top_eig": 24384.61409919038,
+        "eff_rank": 1384,
+        "cond": 55212869602.93474,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4186,
+        "dim": 2048,
+        "top_eig": 48196.71182440492,
+        "eff_rank": 1413,
+        "cond": 280998487.92330337,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2792,
+        "dim": 2048,
+        "top_eig": 26095.063422131345,
+        "eff_rank": 1787,
+        "cond": 97483231.28137161,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4723,
+        "dim": 2048,
+        "top_eig": 45689.18402933235,
+        "eff_rank": 1992,
+        "cond": 511667367115.1937,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 7040,
+        "dim": 2048,
+        "top_eig": 82855.78818188663,
+        "eff_rank": 1750,
+        "cond": 53186484.69752343,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4322,
+        "dim": 2048,
+        "top_eig": 78054.51461155762,
+        "eff_rank": 947,
+        "cond": 948673220.6006275,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3239,
+        "dim": 2048,
+        "top_eig": 43512.58223954699,
+        "eff_rank": 879,
+        "cond": 3184274345.5691056,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2940,
+        "dim": 2048,
+        "top_eig": 28548.075581036006,
+        "eff_rank": 1985,
+        "cond": 10780980.878846843,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3193,
+        "dim": 2048,
+        "top_eig": 39541.99615729437,
+        "eff_rank": 1391,
+        "cond": 474743376.7240296,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3819,
+        "dim": 2048,
+        "top_eig": 35888.42302542094,
+        "eff_rank": 1961,
+        "cond": 817115703446.7134,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 7802,
+        "dim": 2048,
+        "top_eig": 74728.40846411203,
+        "eff_rank": 2047,
+        "cond": 12560527427.604013,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4960,
+        "dim": 2048,
+        "top_eig": 62660.981584255394,
+        "eff_rank": 1851,
+        "cond": 33062991.315921888,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3516,
+        "dim": 2048,
+        "top_eig": 38757.72808967333,
+        "eff_rank": 1379,
+        "cond": 312288250.66524845,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2776,
+        "dim": 2048,
+        "top_eig": 36934.49488658097,
+        "eff_rank": 1263,
+        "cond": 1397927100.3541706,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4124,
+        "dim": 2048,
+        "top_eig": 45779.79120041776,
+        "eff_rank": 1751,
+        "cond": 91379805.9759303,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 7085,
+        "dim": 2048,
+        "top_eig": 83907.21063601552,
+        "eff_rank": 2046,
+        "cond": 130223720038.9492,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5198,
+        "dim": 2048,
+        "top_eig": 59475.052154246834,
+        "eff_rank": 1914,
+        "cond": 19399654.004391577,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 6380,
+        "dim": 2048,
+        "top_eig": 97846.03931377851,
+        "eff_rank": 1932,
+        "cond": 839870194210.4823,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3208,
+        "dim": 2048,
+        "top_eig": 36056.64925657799,
+        "eff_rank": 1852,
+        "cond": 49492834.19115939,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 592,
+        "dim": 2048,
+        "top_eig": 6963.110494665825,
+        "eff_rank": 589,
+        "cond": 866233375167.2795,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5242,
+        "dim": 2048,
+        "top_eig": 84227.66819127926,
+        "eff_rank": 1323,
+        "cond": 304897884.2632979,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 1310,
+        "dim": 2048,
+        "top_eig": 23652.030094620975,
+        "eff_rank": 668,
+        "cond": 217761349324.21933,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3952,
+        "dim": 2048,
+        "top_eig": 47268.01358309781,
+        "eff_rank": 1764,
+        "cond": 65004091.826366946,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3349,
+        "dim": 2048,
+        "top_eig": 36690.714122697216,
+        "eff_rank": 1503,
+        "cond": 232999555.37621194,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5402,
+        "dim": 2048,
+        "top_eig": 66247.67413346379,
+        "eff_rank": 1991,
+        "cond": 593700870151.1772,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2651,
+        "dim": 2048,
+        "top_eig": 43013.98884555863,
+        "eff_rank": 903,
+        "cond": 56252156135.690414,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 7329,
+        "dim": 2048,
+        "top_eig": 63558.29050379715,
+        "eff_rank": 2047,
+        "cond": 14702469077.186802,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4883,
+        "dim": 2048,
+        "top_eig": 59466.96234929927,
+        "eff_rank": 1586,
+        "cond": 121346599.83050454,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4213,
+        "dim": 2048,
+        "top_eig": 49681.88656662489,
+        "eff_rank": 1745,
+        "cond": 67634414.87115794,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3128,
+        "dim": 2048,
+        "top_eig": 36232.91045372933,
+        "eff_rank": 1618,
+        "cond": 205133784.52367416,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3172,
+        "dim": 2048,
+        "top_eig": 33386.17525766748,
+        "eff_rank": 1446,
+        "cond": 318720504.30564195,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3983,
+        "dim": 2048,
+        "top_eig": 43690.65132870861,
+        "eff_rank": 1982,
+        "cond": 672226533924.3549,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2910,
+        "dim": 2048,
+        "top_eig": 25075.527084456822,
+        "eff_rank": 1708,
+        "cond": 157631374.04586497,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2587,
+        "dim": 2048,
+        "top_eig": 27176.639662977694,
+        "eff_rank": 1602,
+        "cond": 403839429.2444548,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2197,
+        "dim": 2048,
+        "top_eig": 29811.334900592636,
+        "eff_rank": 1175,
+        "cond": 296780630353.0693,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3340,
+        "dim": 2048,
+        "top_eig": 35690.011178417815,
+        "eff_rank": 1519,
+        "cond": 217517425.47012556,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4634,
+        "dim": 2048,
+        "top_eig": 65343.13027521233,
+        "eff_rank": 1272,
+        "cond": 410295222.3902958,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3714,
+        "dim": 2048,
+        "top_eig": 53502.6091734097,
+        "eff_rank": 911,
+        "cond": 1428890468.2227554,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4207,
+        "dim": 2048,
+        "top_eig": 60372.88194108165,
+        "eff_rank": 1607,
+        "cond": 177575612.14556322,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 11928,
+        "dim": 2048,
+        "top_eig": 114080.81940169095,
+        "eff_rank": 2047,
+        "cond": 13169290346.805275,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3628,
+        "dim": 2048,
+        "top_eig": 37241.62338820059,
+        "eff_rank": 1584,
+        "cond": 131429618.17522025,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3258,
+        "dim": 2048,
+        "top_eig": 40504.39588924097,
+        "eff_rank": 943,
+        "cond": 1650218369.893197,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3556,
+        "dim": 2048,
+        "top_eig": 35325.35238089223,
+        "eff_rank": 1798,
+        "cond": 56849082.39768124,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4223,
+        "dim": 2048,
+        "top_eig": 42344.14366928495,
+        "eff_rank": 1703,
+        "cond": 67743800.96214812,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 6513,
+        "dim": 2048,
+        "top_eig": 71918.48644033752,
+        "eff_rank": 1759,
+        "cond": 65838915.59611373,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2958,
+        "dim": 2048,
+        "top_eig": 30927.182969975205,
+        "eff_rank": 1435,
+        "cond": 438280625.98614407,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3163,
+        "dim": 2048,
+        "top_eig": 30776.260591721213,
+        "eff_rank": 1763,
+        "cond": 87306173.43224898,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4149,
+        "dim": 2048,
+        "top_eig": 50528.84369551818,
+        "eff_rank": 1669,
+        "cond": 104759468.37231356,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2927,
+        "dim": 2048,
+        "top_eig": 29307.223494541373,
+        "eff_rank": 1622,
+        "cond": 211163586.1084364,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4846,
+        "dim": 2048,
+        "top_eig": 45239.08417819865,
+        "eff_rank": 2047,
+        "cond": 18934307180.056366,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 1408,
+        "dim": 2048,
+        "top_eig": 22309.56570868282,
+        "eff_rank": 923,
+        "cond": 307679815595.93616,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5367,
+        "dim": 2048,
+        "top_eig": 76375.85674190195,
+        "eff_rank": 1614,
+        "cond": 111480166.90665051,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 7034,
+        "dim": 2048,
+        "top_eig": 91033.34204989905,
+        "eff_rank": 1857,
+        "cond": 26821400.54688039,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3672,
+        "dim": 2048,
+        "top_eig": 35871.37577495453,
+        "eff_rank": 1722,
+        "cond": 81151501.94885655,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2721,
+        "dim": 2048,
+        "top_eig": 27089.793121250244,
+        "eff_rank": 1613,
+        "cond": 249781362.50115103,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 6116,
+        "dim": 2048,
+        "top_eig": 101223.62918057421,
+        "eff_rank": 845,
+        "cond": 617601901.7379466,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 6941,
+        "dim": 2048,
+        "top_eig": 68659.48773662161,
+        "eff_rank": 2047,
+        "cond": 15697571276.456135,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3846,
+        "dim": 2048,
+        "top_eig": 44949.052491813214,
+        "eff_rank": 1593,
+        "cond": 194204683.97942924,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4068,
+        "dim": 2048,
+        "top_eig": 51852.899313707676,
+        "eff_rank": 1838,
+        "cond": 38938519.84343034,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4367,
+        "dim": 2048,
+        "top_eig": 52297.943266197064,
+        "eff_rank": 1913,
+        "cond": 20649986.40818226,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2567,
+        "dim": 2048,
+        "top_eig": 28855.76743647753,
+        "eff_rank": 1269,
+        "cond": 4326231890.219195,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 1376,
+        "dim": 2048,
+        "top_eig": 19980.74594298985,
+        "eff_rank": 671,
+        "cond": 448991647272.0221,
+        "rank_deficient": true
+      }
+    ],
+    "model.layers.1.mlp.experts": [
+      {
+        "tokens": 3285,
+        "dim": 2048,
+        "top_eig": 54142.562854809556,
+        "eff_rank": 2047,
+        "cond": 162415848425.5153,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2958,
+        "dim": 2048,
+        "top_eig": 43128.52522122403,
+        "eff_rank": 2047,
+        "cond": 85511121566.79077,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3223,
+        "dim": 2048,
+        "top_eig": 41487.48333101487,
+        "eff_rank": 2047,
+        "cond": 41862618625.78183,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2840,
+        "dim": 2048,
+        "top_eig": 40305.855990659344,
+        "eff_rank": 2047,
+        "cond": 142872438492.59915,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3117,
+        "dim": 2048,
+        "top_eig": 36457.43403566569,
+        "eff_rank": 2047,
+        "cond": 51031516296.65213,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 10250,
+        "dim": 2048,
+        "top_eig": 116364.60578200663,
+        "eff_rank": 2047,
+        "cond": 7428257246.436671,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2761,
+        "dim": 2048,
+        "top_eig": 29984.826004679147,
+        "eff_rank": 2047,
+        "cond": 142765996628.6205,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3407,
+        "dim": 2048,
+        "top_eig": 93986.1448757757,
+        "eff_rank": 2047,
+        "cond": 519195804491.7273,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 6009,
+        "dim": 2048,
+        "top_eig": 86860.42036665417,
+        "eff_rank": 2047,
+        "cond": 34804296734.83024,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4469,
+        "dim": 2048,
+        "top_eig": 77726.82323981484,
+        "eff_rank": 2047,
+        "cond": 72286086212.6114,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2275,
+        "dim": 2048,
+        "top_eig": 25209.349557811933,
+        "eff_rank": 2028,
+        "cond": 627391176259.3383,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 7431,
+        "dim": 2048,
+        "top_eig": 107226.59269312824,
+        "eff_rank": 2047,
+        "cond": 23671716386.57005,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4584,
+        "dim": 2048,
+        "top_eig": 61202.03460654369,
+        "eff_rank": 2047,
+        "cond": 38271935880.25838,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5750,
+        "dim": 2048,
+        "top_eig": 89714.892600477,
+        "eff_rank": 2047,
+        "cond": 41750452961.03366,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3643,
+        "dim": 2048,
+        "top_eig": 46652.07960625684,
+        "eff_rank": 2047,
+        "cond": 56371638947.86959,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3788,
+        "dim": 2048,
+        "top_eig": 68180.13796746073,
+        "eff_rank": 2047,
+        "cond": 121690872034.86748,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5005,
+        "dim": 2048,
+        "top_eig": 119895.679366403,
+        "eff_rank": 2047,
+        "cond": 121705955238.34856,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3614,
+        "dim": 2048,
+        "top_eig": 45291.935828369285,
+        "eff_rank": 2047,
+        "cond": 48854737397.63872,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 8944,
+        "dim": 2048,
+        "top_eig": 164718.07652062457,
+        "eff_rank": 2047,
+        "cond": 48527756469.743805,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3573,
+        "dim": 2048,
+        "top_eig": 41266.86621291212,
+        "eff_rank": 2047,
+        "cond": 29531382612.838173,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3546,
+        "dim": 2048,
+        "top_eig": 51196.913072924566,
+        "eff_rank": 2047,
+        "cond": 71214721020.3412,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4951,
+        "dim": 2048,
+        "top_eig": 67746.16687184578,
+        "eff_rank": 2047,
+        "cond": 21277210165.772003,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2995,
+        "dim": 2048,
+        "top_eig": 46010.148396633944,
+        "eff_rank": 2047,
+        "cond": 138378204874.5144,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4578,
+        "dim": 2048,
+        "top_eig": 115028.64886576607,
+        "eff_rank": 2047,
+        "cond": 209421185502.70883,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2505,
+        "dim": 2048,
+        "top_eig": 30928.87635259806,
+        "eff_rank": 2046,
+        "cond": 394398546125.3677,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 1011,
+        "dim": 2048,
+        "top_eig": 12910.81121699364,
+        "eff_rank": 1010,
+        "cond": 140629038383.0989,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2652,
+        "dim": 2048,
+        "top_eig": 55921.70099241866,
+        "eff_rank": 2045,
+        "cond": 518026645224.59424,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5269,
+        "dim": 2048,
+        "top_eig": 115980.75324232565,
+        "eff_rank": 2047,
+        "cond": 67571117653.88475,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2236,
+        "dim": 2048,
+        "top_eig": 24990.292157205316,
+        "eff_rank": 2006,
+        "cond": 946133899125.7953,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 6414,
+        "dim": 2048,
+        "top_eig": 108770.41451188756,
+        "eff_rank": 2047,
+        "cond": 36614758543.70426,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3239,
+        "dim": 2048,
+        "top_eig": 39456.17461258931,
+        "eff_rank": 2047,
+        "cond": 50427479238.64898,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3826,
+        "dim": 2048,
+        "top_eig": 48741.910587505845,
+        "eff_rank": 2047,
+        "cond": 38878713020.05706,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5210,
+        "dim": 2048,
+        "top_eig": 79264.94172052553,
+        "eff_rank": 2047,
+        "cond": 46287016555.62056,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2651,
+        "dim": 2048,
+        "top_eig": 32351.524822977277,
+        "eff_rank": 2047,
+        "cond": 186426538479.8211,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2473,
+        "dim": 2048,
+        "top_eig": 54080.71698057139,
+        "eff_rank": 2035,
+        "cond": 724085909403.0054,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5362,
+        "dim": 2048,
+        "top_eig": 68177.60622477578,
+        "eff_rank": 2047,
+        "cond": 19385070928.04593,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2472,
+        "dim": 2048,
+        "top_eig": 30599.74553149825,
+        "eff_rank": 2047,
+        "cond": 232276339501.45023,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 6220,
+        "dim": 2048,
+        "top_eig": 74333.40835689168,
+        "eff_rank": 2047,
+        "cond": 13144556294.04066,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2627,
+        "dim": 2048,
+        "top_eig": 34728.52130958771,
+        "eff_rank": 2047,
+        "cond": 258288109973.07507,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3991,
+        "dim": 2048,
+        "top_eig": 74350.67341314559,
+        "eff_rank": 2047,
+        "cond": 142512141211.95862,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5190,
+        "dim": 2048,
+        "top_eig": 71294.38543353503,
+        "eff_rank": 2047,
+        "cond": 26231231700.072,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4409,
+        "dim": 2048,
+        "top_eig": 63969.484544773324,
+        "eff_rank": 2047,
+        "cond": 48436203436.53392,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 6311,
+        "dim": 2048,
+        "top_eig": 91840.0533722144,
+        "eff_rank": 2047,
+        "cond": 16889110733.650562,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2239,
+        "dim": 2048,
+        "top_eig": 24779.95709781709,
+        "eff_rank": 2025,
+        "cond": 795871071641.0438,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3017,
+        "dim": 2048,
+        "top_eig": 35858.43258072964,
+        "eff_rank": 2047,
+        "cond": 97843967631.94618,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5291,
+        "dim": 2048,
+        "top_eig": 63803.80085755087,
+        "eff_rank": 2047,
+        "cond": 17503726303.172146,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2546,
+        "dim": 2048,
+        "top_eig": 27999.871653023423,
+        "eff_rank": 2047,
+        "cond": 238090326751.2185,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 6613,
+        "dim": 2048,
+        "top_eig": 105600.29906522846,
+        "eff_rank": 2047,
+        "cond": 21949728789.233627,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3972,
+        "dim": 2048,
+        "top_eig": 47721.17988586244,
+        "eff_rank": 2047,
+        "cond": 31531671769.96702,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3540,
+        "dim": 2048,
+        "top_eig": 51436.57742140321,
+        "eff_rank": 2047,
+        "cond": 71995407955.00395,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3701,
+        "dim": 2048,
+        "top_eig": 64473.72908509443,
+        "eff_rank": 2047,
+        "cond": 100040809355.3582,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3802,
+        "dim": 2048,
+        "top_eig": 43724.89742437833,
+        "eff_rank": 2047,
+        "cond": 49520507366.45205,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3364,
+        "dim": 2048,
+        "top_eig": 40564.11752444826,
+        "eff_rank": 2047,
+        "cond": 55669422577.57453,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5386,
+        "dim": 2048,
+        "top_eig": 85538.67864438792,
+        "eff_rank": 2047,
+        "cond": 51807591869.42876,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3559,
+        "dim": 2048,
+        "top_eig": 57408.055864266265,
+        "eff_rank": 2047,
+        "cond": 79610349421.05894,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2828,
+        "dim": 2048,
+        "top_eig": 31358.921261398835,
+        "eff_rank": 2047,
+        "cond": 105777954201.8039,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2153,
+        "dim": 2048,
+        "top_eig": 21817.175071805665,
+        "eff_rank": 2001,
+        "cond": 983944865135.7865,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3058,
+        "dim": 2048,
+        "top_eig": 39655.08635267991,
+        "eff_rank": 2047,
+        "cond": 82275318142.68167,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3241,
+        "dim": 2048,
+        "top_eig": 43252.75884470588,
+        "eff_rank": 2047,
+        "cond": 60232285777.555084,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 6955,
+        "dim": 2048,
+        "top_eig": 79041.67654767286,
+        "eff_rank": 2047,
+        "cond": 10084084601.839289,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2801,
+        "dim": 2048,
+        "top_eig": 32852.00686583822,
+        "eff_rank": 2047,
+        "cond": 83815697806.85379,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4722,
+        "dim": 2048,
+        "top_eig": 78879.6524825423,
+        "eff_rank": 2047,
+        "cond": 61919734847.42042,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4612,
+        "dim": 2048,
+        "top_eig": 107933.44363003297,
+        "eff_rank": 2047,
+        "cond": 148493590758.3291,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3680,
+        "dim": 2048,
+        "top_eig": 107113.08111648937,
+        "eff_rank": 2047,
+        "cond": 301592473138.62445,
+        "rank_deficient": true
+      }
+    ],
+    "model.layers.10.mlp.experts": [
+      {
+        "tokens": 5271,
+        "dim": 2048,
+        "top_eig": 572803.3822143434,
+        "eff_rank": 2048,
+        "cond": 24518.46503863299,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 5749,
+        "dim": 2048,
+        "top_eig": 650283.1791339937,
+        "eff_rank": 2048,
+        "cond": 27345.647508963197,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3457,
+        "dim": 2048,
+        "top_eig": 375445.5247426693,
+        "eff_rank": 2048,
+        "cond": 40558.81341570445,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3534,
+        "dim": 2048,
+        "top_eig": 357658.20900968043,
+        "eff_rank": 2048,
+        "cond": 33886.96656091271,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 1334,
+        "dim": 2048,
+        "top_eig": 178071.09405442287,
+        "eff_rank": 1287,
+        "cond": 254812072685.12125,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5847,
+        "dim": 2048,
+        "top_eig": 567281.6767198765,
+        "eff_rank": 2048,
+        "cond": 16417.79102738549,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2102,
+        "dim": 2048,
+        "top_eig": 496675.0328233661,
+        "eff_rank": 1926,
+        "cond": 533761169.2467807,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3991,
+        "dim": 2048,
+        "top_eig": 641808.6906437401,
+        "eff_rank": 2048,
+        "cond": 64515.04548799538,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 6507,
+        "dim": 2048,
+        "top_eig": 651075.0635794816,
+        "eff_rank": 2048,
+        "cond": 16471.265698512332,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 5104,
+        "dim": 2048,
+        "top_eig": 484605.9614416043,
+        "eff_rank": 2048,
+        "cond": 18227.26612988716,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3862,
+        "dim": 2048,
+        "top_eig": 463322.7057652718,
+        "eff_rank": 2048,
+        "cond": 49474.80522423948,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3772,
+        "dim": 2048,
+        "top_eig": 560376.6080175606,
+        "eff_rank": 2048,
+        "cond": 56100.1066038387,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3110,
+        "dim": 2048,
+        "top_eig": 708637.3826798862,
+        "eff_rank": 2048,
+        "cond": 160150.09554953568,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 5144,
+        "dim": 2048,
+        "top_eig": 579754.5809411737,
+        "eff_rank": 2048,
+        "cond": 25447.46573788891,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4487,
+        "dim": 2048,
+        "top_eig": 538722.7645604648,
+        "eff_rank": 2048,
+        "cond": 34418.392623699845,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2470,
+        "dim": 2048,
+        "top_eig": 292642.60688591783,
+        "eff_rank": 2048,
+        "cond": 150527.53013808155,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2745,
+        "dim": 2048,
+        "top_eig": 291679.4802944574,
+        "eff_rank": 2048,
+        "cond": 101151.05178035882,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 7118,
+        "dim": 2048,
+        "top_eig": 851325.3483258721,
+        "eff_rank": 2048,
+        "cond": 23246.75402670237,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3499,
+        "dim": 2048,
+        "top_eig": 369957.0451268493,
+        "eff_rank": 2048,
+        "cond": 30466.876381309987,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 1424,
+        "dim": 2048,
+        "top_eig": 138005.94896490243,
+        "eff_rank": 1424,
+        "cond": 101642535579.17323,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 1036,
+        "dim": 2048,
+        "top_eig": 113510.95256545403,
+        "eff_rank": 1036,
+        "cond": 385626979066.2424,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2331,
+        "dim": 2048,
+        "top_eig": 319014.58379224903,
+        "eff_rank": 2048,
+        "cond": 514765.26968573977,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2220,
+        "dim": 2048,
+        "top_eig": 193820.44690624863,
+        "eff_rank": 2048,
+        "cond": 712610.0730952007,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4734,
+        "dim": 2048,
+        "top_eig": 507218.31827412825,
+        "eff_rank": 2048,
+        "cond": 23286.116202773075,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 7096,
+        "dim": 2048,
+        "top_eig": 821037.0954882416,
+        "eff_rank": 2048,
+        "cond": 21540.940383573616,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 1542,
+        "dim": 2048,
+        "top_eig": 172590.265509211,
+        "eff_rank": 1542,
+        "cond": 340972494141.2718,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2508,
+        "dim": 2048,
+        "top_eig": 317686.55167850154,
+        "eff_rank": 2048,
+        "cond": 190021.35926484352,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3200,
+        "dim": 2048,
+        "top_eig": 412219.7578329807,
+        "eff_rank": 2048,
+        "cond": 71933.07484844762,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2543,
+        "dim": 2048,
+        "top_eig": 283973.64114539686,
+        "eff_rank": 2048,
+        "cond": 121337.36862426865,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3310,
+        "dim": 2048,
+        "top_eig": 304114.48489076085,
+        "eff_rank": 2048,
+        "cond": 31707.025845647902,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3616,
+        "dim": 2048,
+        "top_eig": 813355.11483029,
+        "eff_rank": 2048,
+        "cond": 128026.66323992533,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 8478,
+        "dim": 2048,
+        "top_eig": 857482.1127168387,
+        "eff_rank": 2048,
+        "cond": 14794.349217122908,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 5082,
+        "dim": 2048,
+        "top_eig": 616807.7667417802,
+        "eff_rank": 2048,
+        "cond": 29702.96017233902,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2748,
+        "dim": 2048,
+        "top_eig": 368216.6061043369,
+        "eff_rank": 2048,
+        "cond": 145849.19650809388,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4448,
+        "dim": 2048,
+        "top_eig": 483879.0667230806,
+        "eff_rank": 2048,
+        "cond": 24988.928702345427,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 1047,
+        "dim": 2048,
+        "top_eig": 95715.58757339956,
+        "eff_rank": 1047,
+        "cond": 261071729467.80423,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5622,
+        "dim": 2048,
+        "top_eig": 633606.8371450063,
+        "eff_rank": 2048,
+        "cond": 26276.899700302853,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 6544,
+        "dim": 2048,
+        "top_eig": 791516.5157016348,
+        "eff_rank": 2048,
+        "cond": 25798.688579416885,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3301,
+        "dim": 2048,
+        "top_eig": 748502.2712722437,
+        "eff_rank": 2048,
+        "cond": 147771.48330313843,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4006,
+        "dim": 2048,
+        "top_eig": 395403.4324937371,
+        "eff_rank": 2048,
+        "cond": 27494.040719287008,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 13332,
+        "dim": 2048,
+        "top_eig": 1465410.0826706397,
+        "eff_rank": 2048,
+        "cond": 16946.40706398204,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4853,
+        "dim": 2048,
+        "top_eig": 511385.869603141,
+        "eff_rank": 2048,
+        "cond": 24380.576043828747,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2805,
+        "dim": 2048,
+        "top_eig": 565367.9241820333,
+        "eff_rank": 2048,
+        "cond": 190105.69033089053,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3694,
+        "dim": 2048,
+        "top_eig": 766518.689996934,
+        "eff_rank": 2048,
+        "cond": 112258.15895615106,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 5081,
+        "dim": 2048,
+        "top_eig": 526921.8056549833,
+        "eff_rank": 2048,
+        "cond": 24077.812578172827,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3375,
+        "dim": 2048,
+        "top_eig": 330537.38333843555,
+        "eff_rank": 2048,
+        "cond": 36993.72190850236,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2483,
+        "dim": 2048,
+        "top_eig": 368001.8973207411,
+        "eff_rank": 2048,
+        "cond": 450778.3541909929,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 5797,
+        "dim": 2048,
+        "top_eig": 609231.1765619721,
+        "eff_rank": 2048,
+        "cond": 21695.489727928067,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2110,
+        "dim": 2048,
+        "top_eig": 449155.7205269153,
+        "eff_rank": 1956,
+        "cond": 47553261.87332052,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5133,
+        "dim": 2048,
+        "top_eig": 532079.7811096706,
+        "eff_rank": 2048,
+        "cond": 18914.715749303643,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2850,
+        "dim": 2048,
+        "top_eig": 423912.8933291414,
+        "eff_rank": 2048,
+        "cond": 94903.65842657641,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3320,
+        "dim": 2048,
+        "top_eig": 422570.6308912361,
+        "eff_rank": 2048,
+        "cond": 67466.39426471952,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4146,
+        "dim": 2048,
+        "top_eig": 462772.1643813122,
+        "eff_rank": 2048,
+        "cond": 33188.16926546733,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 5170,
+        "dim": 2048,
+        "top_eig": 570133.5264703049,
+        "eff_rank": 2048,
+        "cond": 25540.454699901442,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 9159,
+        "dim": 2048,
+        "top_eig": 1020781.9000170394,
+        "eff_rank": 2048,
+        "cond": 19836.81817973331,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3843,
+        "dim": 2048,
+        "top_eig": 350117.57764999336,
+        "eff_rank": 2048,
+        "cond": 22831.97086110532,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 1251,
+        "dim": 2048,
+        "top_eig": 187757.83063936234,
+        "eff_rank": 1251,
+        "cond": 480881390022.091,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4802,
+        "dim": 2048,
+        "top_eig": 594216.181452923,
+        "eff_rank": 2048,
+        "cond": 26331.153955406517,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2821,
+        "dim": 2048,
+        "top_eig": 313808.39759986254,
+        "eff_rank": 2048,
+        "cond": 75784.31440226495,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3412,
+        "dim": 2048,
+        "top_eig": 743115.6000176086,
+        "eff_rank": 2048,
+        "cond": 133642.84381620705,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3374,
+        "dim": 2048,
+        "top_eig": 437527.88213108794,
+        "eff_rank": 2048,
+        "cond": 55158.633488499814,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2333,
+        "dim": 2048,
+        "top_eig": 244934.74781959614,
+        "eff_rank": 2048,
+        "cond": 262877.3358190795,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 8456,
+        "dim": 2048,
+        "top_eig": 907184.9826277341,
+        "eff_rank": 2048,
+        "cond": 17772.856940883798,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2605,
+        "dim": 2048,
+        "top_eig": 297577.9192354907,
+        "eff_rank": 2048,
+        "cond": 124996.31615626042,
+        "rank_deficient": false
+      }
+    ],
+    "model.layers.11.mlp.experts": [
+      {
+        "tokens": 5475,
+        "dim": 2048,
+        "top_eig": 679864.5188946666,
+        "eff_rank": 2048,
+        "cond": 30095.80766575922,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 5101,
+        "dim": 2048,
+        "top_eig": 675765.5909967858,
+        "eff_rank": 2048,
+        "cond": 37645.80318432103,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3814,
+        "dim": 2048,
+        "top_eig": 419709.04224860494,
+        "eff_rank": 2048,
+        "cond": 35164.48250688949,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3421,
+        "dim": 2048,
+        "top_eig": 389097.6262539127,
+        "eff_rank": 2048,
+        "cond": 42799.10327232652,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2093,
+        "dim": 2048,
+        "top_eig": 325771.79244745744,
+        "eff_rank": 2019,
+        "cond": 9371934.436880367,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3374,
+        "dim": 2048,
+        "top_eig": 471341.3361225176,
+        "eff_rank": 2048,
+        "cond": 58213.01622014108,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 8870,
+        "dim": 2048,
+        "top_eig": 1091844.2212073682,
+        "eff_rank": 2048,
+        "cond": 22519.28176678233,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4838,
+        "dim": 2048,
+        "top_eig": 507714.9978258639,
+        "eff_rank": 2048,
+        "cond": 26121.719941600873,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 5114,
+        "dim": 2048,
+        "top_eig": 711274.4924416512,
+        "eff_rank": 2048,
+        "cond": 37324.548880175775,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4301,
+        "dim": 2048,
+        "top_eig": 428839.1013297228,
+        "eff_rank": 2048,
+        "cond": 25466.83208379917,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 1660,
+        "dim": 2048,
+        "top_eig": 230819.70098603447,
+        "eff_rank": 1609,
+        "cond": 956165151524.6348,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4867,
+        "dim": 2048,
+        "top_eig": 533299.4734562745,
+        "eff_rank": 2048,
+        "cond": 26683.479646166117,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4257,
+        "dim": 2048,
+        "top_eig": 536159.127734195,
+        "eff_rank": 2048,
+        "cond": 33742.57255810212,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 345,
+        "dim": 2048,
+        "top_eig": 56607.06273912059,
+        "eff_rank": 345,
+        "cond": 293289959319.8719,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 1889,
+        "dim": 2048,
+        "top_eig": 201735.16021021968,
+        "eff_rank": 1865,
+        "cond": 75225548133.4247,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5959,
+        "dim": 2048,
+        "top_eig": 797037.7744817833,
+        "eff_rank": 2048,
+        "cond": 28462.780778732184,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 1891,
+        "dim": 2048,
+        "top_eig": 245419.57350995782,
+        "eff_rank": 1890,
+        "cond": 60184701577.211006,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 7625,
+        "dim": 2048,
+        "top_eig": 800886.4251949873,
+        "eff_rank": 2048,
+        "cond": 16922.593138686963,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4083,
+        "dim": 2048,
+        "top_eig": 556697.3627603556,
+        "eff_rank": 2048,
+        "cond": 40625.97294609956,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3188,
+        "dim": 2048,
+        "top_eig": 431770.1766196975,
+        "eff_rank": 2048,
+        "cond": 76589.70230783315,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4038,
+        "dim": 2048,
+        "top_eig": 473955.36121087975,
+        "eff_rank": 2048,
+        "cond": 32280.836050965474,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4130,
+        "dim": 2048,
+        "top_eig": 597882.3181644741,
+        "eff_rank": 2048,
+        "cond": 54377.09584544223,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4015,
+        "dim": 2048,
+        "top_eig": 897186.6276608857,
+        "eff_rank": 2048,
+        "cond": 97078.46041538646,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2166,
+        "dim": 2048,
+        "top_eig": 404668.12572572706,
+        "eff_rank": 2007,
+        "cond": 4830233.690480721,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 4192,
+        "dim": 2048,
+        "top_eig": 695553.5798071222,
+        "eff_rank": 2048,
+        "cond": 59145.168928640756,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2280,
+        "dim": 2048,
+        "top_eig": 227870.84806257376,
+        "eff_rank": 2048,
+        "cond": 352246.28775681724,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3339,
+        "dim": 2048,
+        "top_eig": 483415.649825913,
+        "eff_rank": 2048,
+        "cond": 68545.11657693122,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 1004,
+        "dim": 2048,
+        "top_eig": 218736.29234653822,
+        "eff_rank": 1004,
+        "cond": 288484827088.5007,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 1624,
+        "dim": 2048,
+        "top_eig": 189489.48273546796,
+        "eff_rank": 1624,
+        "cond": 266509931359.13394,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3115,
+        "dim": 2048,
+        "top_eig": 508675.1057043198,
+        "eff_rank": 2048,
+        "cond": 100167.71611845057,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4587,
+        "dim": 2048,
+        "top_eig": 657969.1945517871,
+        "eff_rank": 2048,
+        "cond": 45397.60996283946,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 5025,
+        "dim": 2048,
+        "top_eig": 699007.9874569357,
+        "eff_rank": 2048,
+        "cond": 37972.056995566985,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4996,
+        "dim": 2048,
+        "top_eig": 654954.5709778981,
+        "eff_rank": 2048,
+        "cond": 32797.54737583615,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2807,
+        "dim": 2048,
+        "top_eig": 766511.9964507024,
+        "eff_rank": 2048,
+        "cond": 482711.7772334185,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 5715,
+        "dim": 2048,
+        "top_eig": 776813.5020805968,
+        "eff_rank": 2048,
+        "cond": 30094.8444983772,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2084,
+        "dim": 2048,
+        "top_eig": 259813.039667034,
+        "eff_rank": 2024,
+        "cond": 10089780.898096772,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3670,
+        "dim": 2048,
+        "top_eig": 532599.2060831669,
+        "eff_rank": 2048,
+        "cond": 63541.82198788586,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2916,
+        "dim": 2048,
+        "top_eig": 707217.8320657797,
+        "eff_rank": 2048,
+        "cond": 299783.63472458674,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 640,
+        "dim": 2048,
+        "top_eig": 101054.87251049964,
+        "eff_rank": 597,
+        "cond": 650796640086.9545,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2579,
+        "dim": 2048,
+        "top_eig": 366333.4853872451,
+        "eff_rank": 2048,
+        "cond": 162154.54227982828,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4475,
+        "dim": 2048,
+        "top_eig": 460236.34912254685,
+        "eff_rank": 2048,
+        "cond": 26874.0343020806,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4378,
+        "dim": 2048,
+        "top_eig": 483451.4805888176,
+        "eff_rank": 2048,
+        "cond": 26832.942531102966,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3952,
+        "dim": 2048,
+        "top_eig": 529258.4281587619,
+        "eff_rank": 2048,
+        "cond": 54249.738274785544,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 9686,
+        "dim": 2048,
+        "top_eig": 1204292.0368348523,
+        "eff_rank": 2048,
+        "cond": 20015.799523140813,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 5922,
+        "dim": 2048,
+        "top_eig": 1093748.4162837453,
+        "eff_rank": 2048,
+        "cond": 48992.257386739984,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 5685,
+        "dim": 2048,
+        "top_eig": 749959.6811827759,
+        "eff_rank": 2048,
+        "cond": 30756.014117640083,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4132,
+        "dim": 2048,
+        "top_eig": 480994.88169311907,
+        "eff_rank": 2048,
+        "cond": 31346.131389362217,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4583,
+        "dim": 2048,
+        "top_eig": 687082.0525418257,
+        "eff_rank": 2048,
+        "cond": 47292.88087846594,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 1962,
+        "dim": 2048,
+        "top_eig": 280817.17014635797,
+        "eff_rank": 1946,
+        "cond": 3651888.192186955,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 5097,
+        "dim": 2048,
+        "top_eig": 519097.47792270966,
+        "eff_rank": 2048,
+        "cond": 22399.06643767795,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 1935,
+        "dim": 2048,
+        "top_eig": 245538.61065745592,
+        "eff_rank": 1934,
+        "cond": 65896484462.5396,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 1970,
+        "dim": 2048,
+        "top_eig": 474747.84325734864,
+        "eff_rank": 1863,
+        "cond": 260990177183.14813,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 2371,
+        "dim": 2048,
+        "top_eig": 672702.914889219,
+        "eff_rank": 2047,
+        "cond": 1038946.0926006831,
+        "rank_deficient": true
+      },
+      {
+        "tokens": 3743,
+        "dim": 2048,
+        "top_eig": 502406.48086995026,
+        "eff_rank": 2048,
+        "cond": 51807.86467253561,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 4875,
+        "dim": 2048,
+        "top_eig": 679944.0073354032,
+        "eff_rank": 2048,
+        "cond": 34832.42674381594,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 12183,
+        "dim": 2048,
+        "top_eig": 1266737.924410277,
+        "eff_rank": 2048,
+        "cond": 13720.447587677341,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 3649,
+        "dim": 2048,
+        "top_eig": 806435.2322973409,
+        "eff_rank": 2048,
+        "cond": 112453.40173607961,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 10041,
+        "dim": 2048,
+        "top_eig": 1258873.6970664957,
+        "eff_rank": 2048,
+        "cond": 20871.88785838127,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 7033,
+        "dim": 2048,
+        "top_eig": 935137.2901762386,
+        "eff_rank": 2048,
+        "cond": 25985.87921184997,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 5116,
+        "dim": 2048,
+        "top_eig": 514299.02074377495,
+        "eff_rank": 2048,
+        "cond": 20902.90034499266,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2610,
+        "dim": 2048,
+        "top_eig": 399400.5757194507,
+        "eff_rank": 2048,
+        "cond": 177680.76403733485,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 5560,
+        "dim": 2048,
+        "top_eig": 690402.5812481209,
+        "eff_rank": 2048,
+        "cond": 29588.953343275643,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 2359,
+        "dim": 2048,
+        "top_eig": 439585.754894756,
+        "eff_rank": 2048,
+        "cond": 790509.4700444562,
+        "rank_deficient": false
+      },
+      {
+        "tokens": 1740,
+        "dim": 2048,
+        "top_eig": 315229.2538962129,
+        "eff_rank": 1740,
+        "cond": 59607564919.08794,
+        "rank_deficient": true
+      }
+    ]
+  }
+}

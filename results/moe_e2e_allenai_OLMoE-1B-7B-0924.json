@@ -1,0 +1,38 @@
+{
+  "model": "allenai/OLMoE-1B-7B-0924",
+  "rank_div": 16,
+  "results": {
+    "fp16": {
+      "ppl": 8.69523811340332
+    },
+    "rtn": {
+      "ppl": 8.813213348388672,
+      "experts": 1024,
+      "quant_s": 2.3
+    },
+    "ours": {
+      "ppl": 8.757944107055664,
+      "experts": 1024,
+      "quant_s": 10.1
+    },
+    "ours_shrink": {
+      "ppl": 8.759781837463379,
+      "experts": 1024,
+      "quant_s": 10.3
+    },
+    "rot_gptq": {
+      "ppl": 8.804707527160645,
+      "experts": 1024,
+      "quant_s": 119.4
+    }
+  },
+  "summary": {
+    "best": "ours",
+    "best_ppl": 8.7579,
+    "fp16": 8.6952,
+    "ours_minus_rot_gptq": -0.0468,
+    "ours_beats_rot_gptq_on_moe": true,
+    "shrinkage_gain": -0.0018,
+    "ours_vs_rtn": 0.0553
+  }
+}

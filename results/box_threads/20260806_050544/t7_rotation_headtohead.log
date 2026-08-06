@@ -1,0 +1,33 @@
+device=cuda model=TinyLlama/TinyLlama-1.1B-Chat-v1.0 acts=fp8 rank=in/16
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (341469 > 2048). Running this sequence through the model will result in indexing errors
+eval tokens: 200000
+W0806 05:47:56.135000 1455 site-packages/torch/utils/_pytree.py:630] <enum 'KernelPreference'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+W0806 05:47:56.148000 1455 site-packages/torch/utils/_pytree.py:630] <enum 'ScaleCalculationMode'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 24026.19it/s]
+  collecting weight Hessians (offline)... done (155 layers, 32 windows, 2.0s)
+  calibrating per-channel eq scales (offline)... done (155 layers, 1.6s)
+  fp16         PPL =   8.7146
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 24715.05it/s]
+  rtn          PPL =   9.2924   (quant   0.0s, 155 layers)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 25105.87it/s]
+  gptq         PPL =   9.0285   (quant  23.2s, 155 layers)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 24076.97it/s]
+  rot_rtn      PPL =   9.8262   (quant   0.5s, 155 layers)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 23538.51it/s]
+  rot_gptq     PPL =   9.0249   (quant  23.5s, 155 layers)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 23094.24it/s]
+  ours         PPL =   8.9212   (quant   2.3s, 155 layers)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 24838.84it/s]
+  ours_rot     PPL =   8.9328   (quant   2.7s, 155 layers)
+
+  {
+    "best_method": "ours",
+    "best_ppl": 8.9212,
+    "ours_minus_rot_gptq": -0.1037,
+    "ours_beats_rot_gptq": true,
+    "rotation_adds_to_ours": -0.0116,
+    "rotation_adds_to_gptq": 0.0036
+  }
+
+wrote /workspace/NVFP4_Research/results/rotation_headtohead_TinyLlama_TinyLlama-1.1B-Chat-v1.0_fp8.json

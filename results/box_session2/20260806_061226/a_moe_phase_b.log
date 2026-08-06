@@ -1,0 +1,51 @@
+device=cuda model=allenai/OLMoE-1B-7B-0924
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+/venv/main/lib/python3.12/site-packages/torchao/quantization/quant_api.py:1558: SyntaxWarning: invalid escape sequence '\.'
+  * regex for parameter names, must start with `re:`, e.g. `re:language\.layers\..+\.q_proj.weight`.
+Loading weights:   0%|          | 0/179 [00:00<?, ?it/s]Loading weights:   3%|▎         | 5/179 [00:00<00:05, 31.45it/s]Loading weights:  15%|█▍        | 26/179 [00:00<00:01, 108.07it/s]Loading weights:  21%|██        | 38/179 [00:00<00:01, 93.13it/s] Loading weights:  33%|███▎      | 59/179 [00:00<00:00, 128.80it/s]Loading weights:  41%|████▏     | 74/179 [00:00<00:00, 117.67it/s]Loading weights:  49%|████▊     | 87/179 [00:00<00:00, 119.24it/s]Loading weights:  56%|█████▌    | 100/179 [00:00<00:00, 119.81it/s]Loading weights:  63%|██████▎   | 113/179 [00:01<00:00, 115.48it/s]Loading weights:  70%|███████   | 126/179 [00:01<00:00, 103.13it/s]Loading weights:  82%|████████▏ | 147/179 [00:01<00:00, 125.70it/s]Loading weights:  90%|████████▉ | 161/179 [00:01<00:00, 117.06it/s]Loading weights: 100%|██████████| 179/179 [00:01<00:00, 118.48it/s]
+  found 16 expert modules: model.layers.0.mlp.experts ...
+    window 1/32 (0s)
+    window 2/32 (1s)
+    window 3/32 (1s)
+    window 4/32 (1s)
+    window 5/32 (1s)
+    window 6/32 (1s)
+    window 7/32 (1s)
+    window 8/32 (1s)
+    window 9/32 (1s)
+    window 10/32 (1s)
+    window 11/32 (1s)
+    window 12/32 (2s)
+    window 13/32 (2s)
+    window 14/32 (2s)
+    window 15/32 (2s)
+    window 16/32 (2s)
+    window 17/32 (2s)
+    window 18/32 (2s)
+    window 19/32 (2s)
+    window 20/32 (2s)
+    window 21/32 (2s)
+    window 22/32 (2s)
+    window 23/32 (3s)
+    window 24/32 (3s)
+    window 25/32 (3s)
+    window 26/32 (3s)
+    window 27/32 (3s)
+    window 28/32 (3s)
+    window 29/32 (3s)
+    window 30/32 (3s)
+    window 31/32 (3s)
+    window 32/32 (3s)
+  collected over 32 windows in 3.5s
+
+  model.layers.0.mlp.experts  (64 experts, dim 2048)
+Traceback (most recent call last):
+  File "/workspace/NVFP4_Research/moe_phase_b.py", line 176, in <module>
+    main()
+  File "/workspace/NVFP4_Research/moe_phase_b.py", line 147, in main
+    row[meth] = output_metric_err(W, Wq, H)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/NVFP4_Research/moe_phase_b.py", line 56, in output_metric_err
+    C = torch.linalg.cholesky(Hs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+torch._C._LinAlgError: linalg.cholesky: The factorization could not be completed because the input is not positive-definite (the leading minor of order 1659 is not positive-definite).
