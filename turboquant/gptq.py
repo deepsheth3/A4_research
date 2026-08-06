@@ -77,6 +77,47 @@ def apply_lowrank(Wq: torch.Tensor, Lfac: torch.Tensor, Rfac: torch.Tensor, r: i
 
 
 @torch.no_grad()
+@torch.no_grad()
+def rotated_gptq_weight(W: torch.Tensor, H: torch.Tensor, block: int = 16,
+                        percdamp: float = 0.01, seed: int = 0,
+                        use_gptq: bool = True) -> torch.Tensor:
+    """Rotation-aware GPTQ: quantize W in a ROTATED basis, then rotate back.
+
+    The competing approach (QuIP/QuaRot/SpinQuant lineage + GPTQ). For an orthogonal
+    Q, `(XQ)(QᵀW) = XW`, so quantizing `W' = QᵀW` against the rotated Hessian
+    `H' = QᵀHQ` is exact at inference — the rotation folds into the neighbouring
+    layer offline, costing nothing at runtime (this is *computational invariance*;
+    it is why QuaRot deploys at all).
+
+    Two claimed mechanisms, both live here:
+      1. incoherence — rotation Gaussianizes within-block, spreading outlier energy
+         so no single channel sets the block scale (QuIP's bound).
+      2. Hessian conditioning — H' is more isotropic than H, so GPTQ's H⁻¹ error
+         feedback is better behaved (this is the plausible MoE story: it would help
+         most where H is rank-deficient).
+
+    Our two-lever theorem predicts this is REDUNDANT after equalization, because
+    equalization already drives blocks to the Gaussian fixed point rotation targets.
+    This function exists to TEST that prediction rather than assert it.
+
+    ``use_gptq=False`` isolates rotation alone (plain RTN rounding in the rotated
+    basis), separating "does rotation help" from "does GPTQ help".
+    """
+    from turboquant.nvfp4 import nvfp4_quantize
+    from turboquant.rotation import rotate, unrotate
+    W = W.float()
+    out, inn = W.shape
+    # Rotate the INPUT-channel axis (the axis H indexes and blocks are cut along).
+    # rotate() acts on the last dim, so W (out,in) rotates directly.
+    Wr = rotate(W, seed=seed)
+    # H transforms as QᵀHQ; apply the same op to both axes.
+    Hr = rotate(rotate(H.float(), seed=seed).t(), seed=seed).t()
+    Hr = 0.5 * (Hr + Hr.t())
+    Wq_r = (gptq_quantize_weight(Wr, Hr, block, percdamp=percdamp) if use_gptq
+            else nvfp4_quantize(Wr, block=block))
+    return unrotate(Wq_r, seed=seed)              # back to the original basis
+
+
 def lowrank_corrected_weight(W: torch.Tensor, H: torch.Tensor, block: int = 16,
                             rank_div: int = 16, use_gptq: bool = True,
                             percdamp: float = 0.01, fp8_factors: bool = False,

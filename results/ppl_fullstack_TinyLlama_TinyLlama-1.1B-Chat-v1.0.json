@@ -1,0 +1,34 @@
+{
+  "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "max_len": 1024,
+  "rank_div": 16,
+  "kv_rank": 64,
+  "results": {
+    "fp16": {
+      "perplexity": 8.714591026306152,
+      "seconds": 2.5
+    },
+    "stack": {
+      "perplexity": 9.032072067260742,
+      "seconds": 38.9
+    },
+    "stack+kv4": {
+      "perplexity": 9.175995826721191,
+      "seconds": 41.2
+    },
+    "stack+kv4+lr64": {
+      "perplexity": 9.095370292663574,
+      "seconds": 41.3
+    },
+    "stack(RTN base)": {
+      "perplexity": 9.022034645080566,
+      "seconds": 38.8
+    }
+  },
+  "summary": {
+    "stack_vs_fp16": 0.3175,
+    "kv4_cost_on_top_of_stack": 0.1439,
+    "kv4_lowrank_recovered_frac": 0.5602,
+    "gptq_vs_rtn_base": -0.01
+  }
+}

@@ -1,0 +1,28 @@
+device=cuda dtype=torch.float16 model=TinyLlama/TinyLlama-1.1B-Chat-v1.0
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (341469 > 2048). Running this sequence through the model will result in indexing errors
+test tokens: 200000
+/venv/main/lib/python3.12/site-packages/torchao/quantization/quant_api.py:1558: SyntaxWarning: invalid escape sequence '\.'
+  * regex for parameter names, must start with `re:`, e.g. `re:language\.layers\..+\.q_proj.weight`.
+W0806 05:05:55.029000 1969 site-packages/torch/utils/_pytree.py:630] <enum 'KernelPreference'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+W0806 05:05:55.070000 1969 site-packages/torch/utils/_pytree.py:630] <enum 'ScaleCalculationMode'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights:  92%|█████████▏| 184/201 [00:00<00:00, 1825.74it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 1911.56it/s]
+  collecting weight Hessians (offline)... done (155 layers, 32 windows, 2.1s)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 2139.44it/s]
+  fp16         PPL =    7.396   (4.5s)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 2174.86it/s]
+  fp8          PPL =    7.420   (11.2s)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 2159.94it/s]
+  RTN+lowrank(in/16,fp8)-quantizing weights to NVFP4 (W4)... done (155 layers, 2.3s)
+  nvfp4_raw    PPL =    8.003   (12.0s)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 2210.01it/s]
+  RTN+lowrank(in/16,fp8)-quantizing weights to NVFP4 (W4)... done (155 layers, 2.3s)
+  w4a8         PPL =    7.563   (11.2s)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights:  92%|█████████▏| 184/201 [00:00<00:00, 1831.30it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 1879.86it/s]
+  RTN+lowrank(in/16,fp8)-quantizing weights to NVFP4 (W4)... done (155 layers, 2.3s)
+  turboquant   PPL =    7.827   (19.8s)
+
+wrote /workspace/NVFP4_Research/results/perplexity_TinyLlama_TinyLlama-1.1B-Chat-v1.0.json
+
+Gap closed by QJL: raw NVFP4 +0.608 PPL over fp16, TurboQuant +0.431 PPL  (recovered 29.0%)
+FP8 target: 7.420 PPL (+0.024 vs fp16). TurboQuant vs FP8: +0.407 PPL (short of the production target).

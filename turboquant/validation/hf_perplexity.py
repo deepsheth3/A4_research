@@ -90,19 +90,24 @@ def collect_weight_hessians(model, calib_ids, max_len: int, device, n_seq: int =
 @torch.no_grad()
 def quantize_weights_gptq(model, hessians: dict, block: int = 16, awq: bool = False,
                           lowrank: bool = False, rank_div: int = 16,
-                          fp8_factors: bool = False, fp4_factors: bool = False) -> int:
+                          fp8_factors: bool = False, fp4_factors: bool = False,
+                          use_gptq: bool = True) -> int:
     """GPTQ-quantize every linear weight to NVFP4 using its activation Hessian.
 
     ``awq`` adds AWQ-style salient-channel protection; ``lowrank`` adds an
-    additive low-rank residual correction (LQER-style, rank = in/``rank_div``)."""
+    additive low-rank residual correction (LQER-style, rank = in/``rank_div``).
+    ``use_gptq=False`` (with ``lowrank``) drops GPTQ's coordinated rounding for
+    plain NVFP4 rounding as the base — the two-lever ablation: it isolates
+    equalization + additive correction from GPTQ's Hessian feedback."""
     from turboquant.gptq import (gptq_quantize_weight, awq_gptq_quantize_weight,
                                  lowrank_corrected_weight)
     if lowrank:
         def quant(W, H, block):
             return lowrank_corrected_weight(W, H, block=block, rank_div=rank_div,
-                                            fp8_factors=fp8_factors, fp4_factors=fp4_factors)
+                                            fp8_factors=fp8_factors, fp4_factors=fp4_factors,
+                                            use_gptq=use_gptq)
         ftag = ',fp4' if fp4_factors else (',fp8' if fp8_factors else '')
-        tag = f"GPTQ+lowrank(in/{rank_div}{ftag})"
+        tag = f"{'GPTQ' if use_gptq else 'RTN'}+lowrank(in/{rank_div}{ftag})"
     elif awq:
         quant, tag = awq_gptq_quantize_weight, "AWQ+GPTQ"
     else:
@@ -289,7 +294,7 @@ def _make_hook(mode: str, layer_idx: int, codec: TurboQuantActQuantizer, mx_bloc
         x = args[0]
         if x.shape[-1] % mx_block != 0:  # can't NVFP4 this projection; leave it
             return None
-        if mode == "fp8":
+        if mode in ("fp8", "w4a8"):  # w4a8: same fp8 activations, but weights stay W4
             xq = fp8_quantize(x.float()).to(x.dtype)
         elif mode == "nvfp4_raw":
             xq = nvfp4_quantize(x.float(), block=mx_block).to(x.dtype)
@@ -709,6 +714,10 @@ def main():
                     help="add AWQ-style salient-channel protection to GPTQ weight quant")
     ap.add_argument("--w4-lowrank", action="store_true",
                     help="add additive low-rank residual correction to GPTQ weight quant (LQER-style)")
+    ap.add_argument("--w4-rtn", action="store_true",
+                    help="plain NVFP4 rounding (RTN) as the low-rank base instead of GPTQ's "
+                         "coordinated rounding — the two-lever config: equalization + additive "
+                         "correction only. Use with --w4-gptq --w4-lowrank.")
     ap.add_argument("--w4-rank-div", type=int, default=16,
                     help="low-rank correction rank = in/this (smaller = higher rank/more capacity)")
     ap.add_argument("--w4-lowrank-fp8", action="store_true",
@@ -750,7 +759,7 @@ def main():
     print(f"test tokens: {ids.size(1)}")
 
     use_w4 = args.w4 or args.w4_gptq
-    has_quant_mode = any(m not in ("fp16", "fp8") for m in args.modes)
+    has_quant_mode = any(m not in ("fp16", "fp8") for m in args.modes)  # w4a8 counts: W4 weights
 
     need_eq = any(m.startswith("nvfp4_eq") for m in args.modes)
     need_mask = any("hmask" in m for m in args.modes)
@@ -806,7 +815,8 @@ def main():
                                       awq=args.awq, lowrank=args.w4_lowrank,
                                       rank_div=args.w4_rank_div,
                                       fp8_factors=args.w4_lowrank_fp8,
-                                      fp4_factors=args.w4_lowrank_fp4)
+                                      fp4_factors=args.w4_lowrank_fp4,
+                                      use_gptq=not args.w4_rtn)
             else:
                 quantize_weights_nvfp4(model, cfg.mx_block)
         meta = {}

@@ -4,17 +4,48 @@
     "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
     "max_len": 1024,
     "stride": 512,
-    "limit": 50000,
+    "limit": 200000,
     "qjl_block": 128,
     "qjl_dim": 64,
+    "w4": true,
+    "w4_gptq": true,
+    "awq": false,
+    "w4_lowrank": true,
+    "w4_rtn": true,
+    "w4_rank_div": 16,
+    "w4_lowrank_fp8": true,
+    "w4_lowrank_fp4": false,
+    "kv4": false,
+    "w4_rank_alloc": false,
     "modes": [
-      "nvfp4_eqzp_svd"
-    ]
+      "fp16",
+      "fp8",
+      "nvfp4_raw",
+      "w4a8",
+      "turboquant"
+    ],
+    "mx_block": 16
   },
   "results": {
-    "nvfp4_eqzp_svd": {
-      "perplexity": 8.011940002441406,
-      "seconds": 21.3
+    "fp16": {
+      "perplexity": 7.395556449890137,
+      "seconds": 4.5
+    },
+    "fp8": {
+      "perplexity": 7.419870853424072,
+      "seconds": 11.2
+    },
+    "nvfp4_raw": {
+      "perplexity": 8.003422737121582,
+      "seconds": 12.0
+    },
+    "w4a8": {
+      "perplexity": 7.562941074371338,
+      "seconds": 11.2
+    },
+    "turboquant": {
+      "perplexity": 7.826845169067383,
+      "seconds": 19.8
     }
   }
 }

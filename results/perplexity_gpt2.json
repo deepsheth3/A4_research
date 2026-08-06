@@ -2,19 +2,44 @@
   "model": "gpt2",
   "config": {
     "model": "gpt2",
-    "max_len": 512,
+    "max_len": 1024,
     "stride": 512,
-    "limit": 3000,
+    "limit": 50,
     "qjl_block": 128,
     "qjl_dim": 64,
+    "w4": false,
+    "w4_gptq": false,
+    "awq": false,
+    "w4_lowrank": false,
+    "w4_rank_div": 16,
+    "w4_lowrank_fp8": false,
+    "w4_lowrank_fp4": false,
+    "kv4": false,
+    "w4_rank_alloc": false,
     "modes": [
-      "turboquant_svd"
-    ]
+      "fp16",
+      "fp8",
+      "nvfp4_raw",
+      "w4a8"
+    ],
+    "mx_block": 16
   },
   "results": {
-    "turboquant_svd": {
-      "perplexity": 43.35274887084961,
-      "seconds": 147.7
+    "fp16": {
+      "perplexity": 81.41942596435547,
+      "seconds": 0.1
+    },
+    "fp8": {
+      "perplexity": 80.73468017578125,
+      "seconds": 0.1
+    },
+    "nvfp4_raw": {
+      "perplexity": 70.27782440185547,
+      "seconds": 0.4
+    },
+    "w4a8": {
+      "perplexity": 80.73468017578125,
+      "seconds": 0.0
     }
   }
 }

@@ -1,0 +1,41 @@
+device=cuda dtype=torch.bfloat16 model=TinyLlama/TinyLlama-1.1B-Chat-v1.0 rank=d/16
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (341469 > 2048). Running this sequence through the model will result in indexing errors
+eval tokens: 200000
+W0806 05:07:13.291000 2649 site-packages/torch/utils/_pytree.py:630] <enum 'KernelPreference'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+W0806 05:07:13.305000 2649 site-packages/torch/utils/_pytree.py:630] <enum 'ScaleCalculationMode'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 21473.64it/s]
+  fp16                     PPL =   8.7146   (2.5s)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 24741.89it/s]
+  collecting weight Hessians (offline)... done (155 layers, 32 windows, 1.8s)
+  calibrating per-channel eq scales (offline)... done (155 layers, 1.7s)
+  GPTQ+lowrank(in/16,fp8)-quantizing weights to NVFP4 (W4)... done (155 layers, 25.5s)
+  precomputing per-layer aux (offline)... done (155 layers, 1.9s)
+  stack                    PPL =   9.0321   (38.9s)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 25543.25it/s]
+  collecting weight Hessians (offline)... done (155 layers, 32 windows, 1.8s)
+  calibrating per-channel eq scales (offline)... done (155 layers, 1.6s)
+  GPTQ+lowrank(in/16,fp8)-quantizing weights to NVFP4 (W4)... done (155 layers, 25.4s)
+  precomputing per-layer aux (offline)... done (155 layers, 1.9s)
+  stack+kv4                PPL =   9.1760   (41.2s)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 24513.83it/s]
+  collecting weight Hessians (offline)... done (155 layers, 32 windows, 1.8s)
+  calibrating per-channel eq scales (offline)... done (155 layers, 1.6s)
+  GPTQ+lowrank(in/16,fp8)-quantizing weights to NVFP4 (W4)... done (155 layers, 25.4s)
+  precomputing per-layer aux (offline)... done (155 layers, 1.9s)
+  stack+kv4+lr64           PPL =   9.0954   (41.3s)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 24531.66it/s]
+  collecting weight Hessians (offline)... done (155 layers, 32 windows, 1.8s)
+  calibrating per-channel eq scales (offline)... done (155 layers, 1.6s)
+  RTN+lowrank(in/16,fp8)-quantizing weights to NVFP4 (W4)... done (155 layers, 2.3s)
+  precomputing per-layer aux (offline)... done (155 layers, 1.9s)
+  stack(RTN base)          PPL =   9.0220   (38.8s)
+
+  {
+    "stack_vs_fp16": 0.3175,
+    "kv4_cost_on_top_of_stack": 0.1439,
+    "kv4_lowrank_recovered_frac": 0.5602,
+    "gptq_vs_rtn_base": -0.01
+  }
+
+wrote /workspace/NVFP4_Research/results/ppl_fullstack_TinyLlama_TinyLlama-1.1B-Chat-v1.0.json

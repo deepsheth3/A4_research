@@ -4,22 +4,43 @@
     "model": "unsloth/Meta-Llama-3.1-8B",
     "max_len": 1024,
     "stride": 512,
-    "limit": 0,
+    "limit": 100000,
     "qjl_block": 128,
     "qjl_dim": 64,
+    "w4": true,
+    "w4_gptq": true,
+    "awq": false,
+    "w4_lowrank": true,
+    "w4_rtn": true,
+    "w4_rank_div": 16,
+    "w4_lowrank_fp8": true,
+    "w4_lowrank_fp4": false,
+    "kv4": false,
+    "w4_rank_alloc": false,
     "modes": [
-      "nvfp4_eqzp_svd",
-      "nvfp4_eqzp_svd_qjl"
-    ]
+      "fp16",
+      "fp8",
+      "nvfp4_raw",
+      "w4a8"
+    ],
+    "mx_block": 16
   },
   "results": {
-    "nvfp4_eqzp_svd": {
-      "perplexity": 6.06549072265625,
-      "seconds": 429.1
+    "fp16": {
+      "perplexity": 6.0958356857299805,
+      "seconds": 14.7
     },
-    "nvfp4_eqzp_svd_qjl": {
-      "perplexity": 6.050283432006836,
-      "seconds": 463.9
+    "fp8": {
+      "perplexity": 6.121628284454346,
+      "seconds": 23.7
+    },
+    "nvfp4_raw": {
+      "perplexity": 6.676036357879639,
+      "seconds": 22.0
+    },
+    "w4a8": {
+      "perplexity": 6.368779182434082,
+      "seconds": 24.3
     }
   }
 }
