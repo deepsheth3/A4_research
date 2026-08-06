@@ -1,0 +1,30 @@
+triton=True cuda=True
+
+[#1+#2] equalization + fp8 activation quant
+  mean relerr 1.09e-07 | elements >1e-3 off: 0.000%  PASS
+
+[#3] KV4 quantize + residual projection
+  NVFP4 grid match : max relerr 0.00e+00  PASS
+  residual coeff   : max relerr 2.51e-07  PASS
+  reconstructed KV : max relerr 5.79e-08  PASS
+
+[#1+#2] fused vs unfused (per-token equalize + fp8 quant)
+  tokens    dim  unfused_us  fused_us  speedup
+      16   2048        38.1       8.3    4.57x
+     512   2048        39.0       8.3    4.70x
+    4096   2048       148.1      10.5   14.06x
+      16   5632        36.4       8.3    4.39x
+     512   5632        65.7       8.5    7.71x
+    4096   5632       659.7      99.6    6.62x
+      16   8192        38.1       7.8    4.88x
+     512   8192        75.9      10.4    7.29x
+    4096   8192      1290.5     182.3    7.08x
+
+[#3] fused vs unfused (KV4 quantize + rank-64 residual projection)
+  tokens    dim  rank  unfused_us  fused_us  speedup
+      16   2048    64        91.7      20.9    4.39x
+     512   2048    64       154.1      82.3    1.87x
+    4096   2048    64      1278.0     504.9    2.53x
+      16   4096    64        86.4      47.5    1.82x
+     512   4096    64       263.6     255.4    1.03x
+    4096   4096    64      2864.2    1640.8    1.75x

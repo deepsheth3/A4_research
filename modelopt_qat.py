@@ -13,15 +13,22 @@ import modelopt.torch.quantization as mtq
 from modelopt.torch.export import export_hf_checkpoint
 from turboquant.validation.hf_perplexity import perplexity
 from turboquant.validation.export_nvfp4 import build_quant_cfg
-from turboquant.validation.acceptance import acceptance_stats
 
-MODEL = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+MODEL = os.environ.get("MODEL", "TinyLlama/TinyLlama-1.1B-Chat-v1.0")
 DEV = "cuda"
 L = 1024
 STEPS = int(os.environ.get("STEPS", 3000))
 KV4 = os.environ.get("KV4", "0") == "1"
-OUT = "/workspace/NVFP4_Research/results/box_run/modelopt_qat_kv4_ckpt" if KV4 \
-      else "/workspace/NVFP4_Research/results/box_run/modelopt_qat_ckpt"
+GSM8K = os.environ.get("GSM8K", "0") == "1"
+GSM8K_FEWSHOT = int(os.environ.get("GSM8K_FEWSHOT", 5))
+GSM8K_LIMIT = int(os.environ.get("GSM8K_LIMIT", 0))  # 0 = full lm-eval test set
+# Skip the FP16 teacher's GSM8K pass when a published score (same task/fewshot config)
+# is already the comparison point -- the teacher model is still loaded/used as the
+# QAT distillation target either way, this only skips its (expensive) generation eval.
+SKIP_FP16_GSM8K = os.environ.get("SKIP_FP16_GSM8K", "0") == "1"
+_MODEL_TAG = MODEL.replace("/", "_")
+OUT = f"/workspace/NVFP4_Research/results/box_run/modelopt_qat_kv4_ckpt_{_MODEL_TAG}" if KV4 \
+      else f"/workspace/NVFP4_Research/results/box_run/modelopt_qat_ckpt_{_MODEL_TAG}"
 
 tok = AutoTokenizer.from_pretrained(MODEL)
 student = AutoModelForCausalLM.from_pretrained(MODEL, dtype=torch.bfloat16).to(DEV)
@@ -38,18 +45,26 @@ ppl_ids = tok("\n\n".join(test["text"]), return_tensors="pt").input_ids[:, :4000
 def win(ids, k):
     return ids[:, k * L:(k + 1) * L].to(DEV)
 
-@torch.no_grad()
-def eval_accept(n=8):
-    """Spec-decode acceptance (alpha = 1-TV) and greedy agreement of the quantized
-    student vs the FP16 teacher — the metric that actually decides the deployment win."""
-    a = g = 0.0
-    for k in range(n):
-        x = win(ppl_ids, k)
-        t = teacher(x).logits[:, :-1, :].reshape(-1, V)
-        d = student(x).logits[:, :-1, :].reshape(-1, V)
-        ai, gi = acceptance_stats(d, t)
-        a += ai; g += gi
-    return round(a / n, 4), round(g / n, 4)
+if GSM8K:
+    from lm_eval import simple_evaluate
+    from lm_eval.models.huggingface import HFLM
+
+    def gsm8k_score(m):
+        """Standard lm-evaluation-harness GSM8K score (the same benchmark + scoring used
+        on model cards / leaderboards) on the model already in memory — no hand-rolled
+        CoT/regex eval, no reload, no PTQ pass."""
+        was_training = m.training
+        m.eval()
+        # max_length capped: "auto" batch-sizing estimates worst-case memory against
+        # the model's advertised max context (e.g. Phi-3.5-mini claims 131072), which
+        # tanks the estimate to batch=1 even though real 5-shot GSM8K prompts are a
+        # few hundred tokens. Cap it to what these prompts actually need.
+        lm = HFLM(pretrained=m, tokenizer=tok, batch_size="auto", max_length=2048)
+        out = simple_evaluate(model=lm, tasks=["gsm8k"], num_fewshot=GSM8K_FEWSHOT,
+                               limit=GSM8K_LIMIT or None)
+        if was_training:
+            m.train()
+        return out["results"]["gsm8k"]
 
 # 1) install ModelOpt NVFP4 quantizers (STE) + calibrate
 calib = [win(tr_ids, k) for k in range(32)]
@@ -64,9 +79,15 @@ print(f"calibrating + installing {CFG_NAME} (KV4={KV4}, steps={STEPS})...", flus
 mtq.quantize(student, cfg, floop)
 
 fp16 = perplexity(teacher, ppl_ids, L, L, DEV)
-ptq = perplexity(student, ppl_ids, L, L, DEV)   # PTQ on the DEPLOY grid
-a_ptq, g_ptq = eval_accept()                     # acceptance BEFORE training
-print(f"FP16 {fp16:.4f} | PTQ(deploy-grid) {ptq:.4f} | PTQ accept alpha={a_ptq} greedy={g_ptq}", flush=True)
+ptq = perplexity(student, ppl_ids, L, L, DEV)   # internal only: best-of baseline, never printed
+print(f"FP16 {fp16:.4f}", flush=True)
+
+if GSM8K and not SKIP_FP16_GSM8K:
+    gsm_fp16 = gsm8k_score(teacher)
+    print(f"GSM8K (lm-eval, {GSM8K_FEWSHOT}-shot) FP16: {gsm_fp16}", flush=True)
+elif GSM8K:
+    gsm_fp16 = "SKIPPED (SKIP_FP16_GSM8K=1) -- compare QAT below to the published score directly"
+    print(f"GSM8K FP16: {gsm_fp16}", flush=True)
 
 # 2) QAT: train the weights to survive ModelOpt's own quantizer.
 #    cosine LR with warmup — converges to a lower basin than constant LR.
@@ -106,11 +127,14 @@ for s in range(STEPS):
 
 student.eval()
 final = perplexity(student, ppl_ids, L, L, DEV)
-a_qat, g_qat = eval_accept()                      # acceptance AFTER training (the win metric)
 print(f"\n*** ModelOpt-NATIVE QAT: deployed PPL = {final:.4f}  (best {best:.4f}) | "
-      f"FP16 {fp16:.4f} | PTQ {ptq:.4f} | gap closed {(ptq-final)/(ptq-fp16):.3f} ***", flush=True)
-print(f"*** ACCEPTANCE (the spec-decode win metric): {a_ptq} -> {a_qat}  "
-      f"(greedy {g_ptq} -> {g_qat}) ***", flush=True)
+      f"FP16 {fp16:.4f} ***", flush=True)
 print("train==deploy: these numbers ARE the deployed model's (no sim-to-real gap).", flush=True)
+
+if GSM8K:
+    gsm_qat = gsm8k_score(student)
+    print(f"*** GSM8K (lm-eval, {GSM8K_FEWSHOT}-shot, standalone quality): "
+          f"FP16 {gsm_fp16} -> QAT {gsm_qat} ***", flush=True)
+
 export_hf_checkpoint(student, dtype=torch.bfloat16, export_dir=OUT)
 print(f"exported -> {OUT}", flush=True)

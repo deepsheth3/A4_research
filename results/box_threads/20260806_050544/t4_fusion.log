@@ -1,0 +1,11 @@
+triton=True cuda=True
+  fused vs naive: max relerr 1.09e-03  FAIL
+Traceback (most recent call last):
+  File "/workspace/NVFP4_Research/triton_lowrank_fusion_bench.py", line 205, in <module>
+    main()
+  File "/workspace/NVFP4_Research/triton_lowrank_fusion_bench.py", line 171, in main
+    correctness("cuda" if (has_cuda and HAS_TRITON) else "cpu")
+  File "/workspace/NVFP4_Research/triton_lowrank_fusion_bench.py", line 150, in correctness
+    assert ok, f"fused kernel disagrees with reference (relerr {err:.2e})"
+           ^^
+AssertionError: fused kernel disagrees with reference (relerr 1.09e-03)

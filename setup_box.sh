@@ -29,10 +29,21 @@ $PIP "transformers>=4.44" "datasets>=2.20" accelerate sentencepiece pytest \
   || { echo "FATAL: core deps failed"; exit 1; }
 $PIP "nvidia-modelopt[torch]" \
   || { echo "FATAL: modelopt failed — no export path"; exit 1; }
+$PIP lm_eval \
+  || { echo "FATAL: lm_eval failed — no standard-benchmark GSM8K score"; exit 1; }
 
 echo "== 2. THROUGHPUT deps — best-effort (failure is OK, headline unaffected) =="
 $PIP torchao || echo "WARN: torchao failed -> gemm_bench will be skipped"
-$PIP vllm     || echo "WARN: vllm failed -> throughput will be skipped. For sm_120 vllm see github.com/elsung/blackwell-llm-toolkit"
+$PIP triton  || echo "WARN: triton failed -> triton_lowrank_fusion_bench will be skipped"
+# vllm supplies cutlass_scaled_fp4_mm (the production FP4 GEMM used by
+# production_path_bench.py). Install it WITHOUT the torch constraint: vllm needs to
+# resolve its own matching torch, and pinning ours forces it onto an ancient broken
+# build (that is what made this fail on the 2026-07-01 and 2026-08-05 boxes). Done
+# LAST so that if it does replace torch, everything else is already installed.
+if command -v uv >/dev/null 2>&1; then PIP_FREE="uv pip install"; else PIP_FREE="pip install --no-input"; fi
+$PIP_FREE vllm || echo "WARN: vllm failed -> production_path_bench will be skipped. For sm_120 vllm see github.com/elsung/blackwell-llm-toolkit"
+python -c "import torch;assert torch.cuda.is_available()" 2>/dev/null \
+  || echo "WARN: vllm install disturbed torch CUDA — check before trusting timings"
 
 echo "== 3. pre-download model + wikitext (so the run needs no network) =="
 python -c "
@@ -40,7 +51,8 @@ from huggingface_hub import snapshot_download
 snapshot_download('TinyLlama/TinyLlama-1.1B-Chat-v1.0')
 from datasets import load_dataset
 for s in ('test','train'): load_dataset('Salesforce/wikitext','wikitext-2-raw-v1',split=s)
-print('cached model + wikitext')
+load_dataset('openai/gsm8k', 'main')
+print('cached model + wikitext + gsm8k')
 " || { echo "FATAL: model/dataset download failed"; exit 1; }
 
 echo "== 4. verify torch intact + repo preflight =="

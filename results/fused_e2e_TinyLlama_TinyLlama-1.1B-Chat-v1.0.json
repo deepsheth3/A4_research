@@ -1,0 +1,25 @@
+{
+  "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "results": {
+    "fp16": {
+      "ppl": 8.790783882141113,
+      "fwd_ms": 10.710452999774134
+    },
+    "w4a8_unfused": {
+      "ppl": 8.990447998046875,
+      "fwd_ms": 21.86302512563998
+    },
+    "w4a8_fused": {
+      "ppl": 8.995298385620117,
+      "fwd_ms": 13.707177124160808
+    }
+  },
+  "summary": {
+    "ppl_delta_fused_vs_unfused": 0.00485,
+    "ppl_identical": false,
+    "fwd_speedup": 1.595,
+    "fwd_saved_ms": 8.16,
+    "w4a8_vs_fp16_ppl": 0.2045,
+    "fused_overhead_vs_fp16_fwd": 1.28
+  }
+}

@@ -1,0 +1,24 @@
+device=cuda model=TinyLlama/TinyLlama-1.1B-Chat-v1.0
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (341469 > 2048). Running this sequence through the model will result in indexing errors
+eval tokens: 100000
+W0806 05:43:50.439000 1268 site-packages/torch/utils/_pytree.py:630] <enum 'KernelPreference'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+W0806 05:43:50.452000 1268 site-packages/torch/utils/_pytree.py:630] <enum 'ScaleCalculationMode'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 60839.66it/s]
+  fp16          PPL   8.7908   fwd    10.7 ms
+  collecting weight Hessians (offline)... done (155 layers, 32 windows, 1.7s)
+  calibrating per-channel eq scales (offline)... done (155 layers, 1.7s)
+  RTN+lowrank(in/16,fp8)-quantizing weights to NVFP4 (W4)... done (155 layers, 2.3s)
+  w4a8_unfused  PPL   8.9904   fwd    21.9 ms
+  w4a8_fused    PPL   8.9953   fwd    13.7 ms
+
+  {
+    "ppl_delta_fused_vs_unfused": 0.00485,
+    "ppl_identical": false,
+    "fwd_speedup": 1.595,
+    "fwd_saved_ms": 8.16,
+    "w4a8_vs_fp16_ppl": 0.2045,
+    "fused_overhead_vs_fp16_fwd": 1.28
+  }
+
+wrote /workspace/NVFP4_Research/results/fused_e2e_TinyLlama_TinyLlama-1.1B-Chat-v1.0.json

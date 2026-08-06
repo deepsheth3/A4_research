@@ -20,7 +20,10 @@ def gscale(x):
 print("Real NVFP4 GEMM (cutlass_scaled_fp4_mm) vs BF16 — RTX PRO 6000 sm_120")
 print(f"supports_fp4={ops.cutlass_scaled_mm_supports_fp4(120)}")
 print(f"{'M':>6}{'K':>7}{'N':>7}{'bf16_TF':>9}{'fp4_TF':>9}{'speedup':>9}{'relerr':>9}")
-shapes = [(8192, 8192), (8192, 28672), (28672, 8192)]  # Llama-70B attn / MLP / down
+shapes = [
+    (8192, 8192), (8192, 28672), (28672, 8192),   # Llama-70B attn / MLP / down
+    (2048, 2048), (2048, 5632), (5632, 2048),     # TinyLlama-1.1B attn(q/o) / MLP(gate,up) / down
+]
 for (K, N) in shapes:
     for M in (16, 512, 4096, 8192):
         A = torch.randn(M, K, device="cuda", dtype=torch.bfloat16) * 0.1

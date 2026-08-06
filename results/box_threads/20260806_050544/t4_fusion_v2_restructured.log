@@ -1,0 +1,27 @@
+triton=True cuda=True
+  fused vs naive: max relerr 5.25e-07  PASS
+  correctness OK
+
+Fused low-rank epilogue (r = K/16)
+  cublas   = torch: main GEMM + separate correction (2 launches, today's path)
+  tri_bare = same Triton kernel, NO correction (isolates fusion's true cost)
+  tri_fuse = Triton kernel WITH the correction fused into the epilogue
+     M      K      N    R   cublas  tri_bare  tri_fuse fuse_cost vs_cublas
+    16   8192   8192  512    0.109     0.075     0.107     1.43x     1.01x
+   512   8192   8192  512    0.243     0.401     0.442     1.10x     0.55x
+  4096   8192   8192  512    1.850     2.513     2.773     1.10x     0.67x
+    16   8192  28672  512    0.327     0.294     0.322     1.10x     1.02x
+   512   8192  28672  512    0.774     1.170     1.279     1.09x     0.60x
+  4096   8192  28672  512    6.393     8.905     9.459     1.06x     0.68x
+    16  28672   8192 1792    0.386     0.325     0.417     1.28x     0.93x
+   512  28672   8192 1792    0.894     1.410     1.635     1.16x     0.55x
+  4096  28672   8192 1792    7.206     9.863    11.662     1.18x     0.62x
+    16   2048   2048  128    0.019     0.015     0.021     1.43x     0.93x
+   512   2048   2048  128    0.029     0.022     0.029     1.33x     1.00x
+  4096   2048   2048  128    0.133     0.172     0.200     1.16x     0.66x
+    16   2048   5632  128    0.021     0.014     0.019     1.31x     1.11x
+   512   2048   5632  128    0.047     0.051     0.060     1.16x     0.79x
+  4096   2048   5632  128    0.327     0.407     0.456     1.12x     0.72x
+    16   5632   2048  352    0.029     0.033     0.043     1.31x     0.67x
+   512   5632   2048  352    0.070     0.057     0.078     1.36x     0.89x
+  4096   5632   2048  352    0.351     0.468     0.546     1.17x     0.64x
