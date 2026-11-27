@@ -1,5 +1,17 @@
 # Negative result: the NVFP4 weight residual is white — low-rank correction is dead
 
+> **Correction, 2026-11-25. The measurements below stand; the Finding and
+> Consequence do not.** This test took a plain (Frobenius) SVD of `W − Q(W)` and
+> scored weight-space error. On 2026-08-05 the same residual, at the same rank,
+> fitted in the activation-Hessian metric closed 64.2% of the RTN→FP16
+> perplexity gap on this same model with FP8 activations, and 64.6% on
+> Llama-3.1-8B (`results/rotation_headtohead_*_fp8.json`). So post-hoc weight
+> correction is not dead and QAT is not the only weight lever. The sentence
+> below that the low-rank lever is "inert on the microscaled NVFP4 residual" was
+> also wrong when written: the 58% result it cites was itself measured on NVFP4
+> weights. Whether the residual's output-weighted energy is concentrated (the
+> likely explanation) has not been measured directly.
+
 Measured on real Llama (TinyLlama) weights, RTX PRO 6000 (sm_120), 2026-07-01.
 Additive low-rank fp8 residual correction on top of the NVFP4 base weight:
 

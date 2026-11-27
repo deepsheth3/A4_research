@@ -563,10 +563,11 @@ reframing), not around "yet another quantization method."
 | 17 | KV4 additive correction | real but not byte-legal | KV4 is the smallest, least-deployable leg |
 | 18 | **QAT→ModelOpt export→deploy on real Blackwell** | **9.766 QAT; 9.94 deployed (+0.18)** | export preserves most, not all, of the QAT gain |
 | 19 | **FP4 GEMM vs BF16 on sm_120** | **3.7× at 70B-layer shapes; slower at 1.1B** | FP4 speed is a large-GEMM property, not intrinsic |
-| 20 | **Low-rank fp8 correction of the NVFP4 *weight* residual** | **dead: rank-128 recovers only 7-13%** | microscaling whitens the residual → no post-hoc weight fix; QAT is the only admissible weight lever |
+| 20 | **Low-rank fp8 correction of the NVFP4 *weight* residual, unweighted (Frobenius) SVD** | rank-128 recovers only 7-13% of weight error | **Corrected 2026-11-25.** Originally read as "microscaling whitens the residual → no post-hoc weight fix; QAT is the only admissible weight lever." That inference was wrong: it tested the wrong metric (see #24) |
 | 21 | **QAT natively on ModelOpt's own quantizer (train==deploy)** | **deployed 9.94 → 9.709** (beats fake-quant too) | the sim-to-deploy gap is a proxy-quantizer artifact; QAT must use the *deployment* quantizer |
 | 22 | **Native QAT with everything 4-bit (W4A4KV4, kv_cache=NVFP4)** | **deployed 9.705 — ties W4A4** | the KV-cache 4-bit leg is *free* under native QAT; long-context memory win at no accuracy cost |
 | 23 | **AWQ (equalization) + native QAT, chasing FP8** | **9.707 — no gain over QAT; floor at ~9.71** | equalization is redundant with QAT; 3 levers converge → Pareto-clean all-4-bit floor is +0.32 over FP8 (irreducible activation/KV error) |
+| 24 | **Same residual, same rank, fit in the activation-Hessian metric (W4A8, 2026-08-05)** | **closes 64.2% of the RTN→FP16 gap on TinyLlama (rank 128 on the 2048-wide layers), 64.6% on Llama-8B; beats our GPTQ and rotation+GPTQ** | post-hoc weight correction is alive; #20 measured weight-space error, not output error. Not equal-byte (+~1 bit/weight). `rotation_headtohead.py`, `results/rotation_headtohead_*_fp8.json` |
 
 ---
 

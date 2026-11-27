@@ -26,7 +26,17 @@ GSM8K_LIMIT = int(os.environ.get("GSM8K_LIMIT", 0))  # 0 = full lm-eval test set
 # is already the comparison point -- the teacher model is still loaded/used as the
 # QAT distillation target either way, this only skips its (expensive) generation eval.
 SKIP_FP16_GSM8K = os.environ.get("SKIP_FP16_GSM8K", "0") == "1"
+SEED = os.environ.get("SEED")   # unset = original sequential window order; set = shuffled order
+# Activation treatment DURING TRAINING. Deployment (eval + export) is always the configured
+# quantizers, so every arm is scored as the same all-NVFP4 model.
+#   a4    quantize activations with STE (original behaviour)
+#   a16   weights-only training; activation quantizers on only for eval/export
+#   noise a16 + the quantizer's own error with random signs (zero-mean, exact gradient)
+ACT_TRAIN = os.environ.get("ACT_TRAIN", "a4")
+assert ACT_TRAIN in ("a4", "a16", "noise"), ACT_TRAIN
 _MODEL_TAG = MODEL.replace("/", "_")
+if ACT_TRAIN != "a4" or SEED is not None:      # default run keeps its original paths
+    _MODEL_TAG += f"_{ACT_TRAIN}_s{SEED}"
 OUT = f"/workspace/NVFP4_Research/results/box_run/modelopt_qat_kv4_ckpt_{_MODEL_TAG}" if KV4 \
       else f"/workspace/NVFP4_Research/results/box_run/modelopt_qat_ckpt_{_MODEL_TAG}"
 
@@ -78,8 +88,59 @@ cfg = build_quant_cfg(base_cfg, kv_cfg=mtq.NVFP4_KV_CFG if KV4 else None)
 print(f"calibrating + installing {CFG_NAME} (KV4={KV4}, steps={STEPS})...", flush=True)
 mtq.quantize(student, cfg, floop)
 
+# Activation (input) quantizers that calibration left enabled; lm_head's stay off.
+act_q = {n: m for n, m in student.named_modules()
+         if n.endswith("input_quantizer") and m.is_enabled}
+
+def act_quant(on):
+    for m in act_q.values():
+        m.enable() if on else m.disable()
+
+noise_on = [False]
+def _noise_hook(module, args):
+    """Add the activation quantizer's own error with random signs: same magnitude as
+    deployment, zero mean, and the gradient is exact (the error is a constant)."""
+    if not noise_on[0]:
+        return None
+    x, iq = args[0], module.input_quantizer
+    with torch.no_grad():
+        iq.enable(); err = iq(x) - x; iq.disable()
+        sign = torch.where(torch.rand_like(x, dtype=torch.float32) < 0.5, -1.0, 1.0)
+    return (x + err * sign.to(x.dtype),) + args[1:]
+
+def train_mode(on):
+    """on = the training-time activation treatment; off = the deployed quantizers."""
+    if ACT_TRAIN != "a4":
+        act_quant(not on)
+    noise_on[0] = on and ACT_TRAIN == "noise"
+    student.train(on)
+
+if ACT_TRAIN != "a4":   # fail in seconds, not after a paid training run
+    assert act_q, "no enabled input quantizers found (ModelOpt layout changed?)"
+    with torch.no_grad():
+        q_on = student(calib[0]).logits
+        act_quant(False)
+        q_off = student(calib[0]).logits
+    assert not torch.equal(q_on, q_off), "switching activation quantizers off changed nothing"
+    act_quant(True)
+    if ACT_TRAIN == "noise":
+        for n in act_q:
+            student.get_submodule(n.rsplit(".", 1)[0]).register_forward_pre_hook(_noise_hook)
+print(f"ACT_TRAIN={ACT_TRAIN} SEED={SEED}: {len(act_q)} activation quantizers", flush=True)
+
+@torch.no_grad()
+def kl_to_teacher(m):
+    """Mean per-token KL(teacher || m) in nats on the held-out eval windows. Paired with
+    the teacher token by token, so it is far less noisy than a perplexity difference."""
+    n = ppl_ids.size(1) // L
+    tot = sum(F.kl_div(F.log_softmax(m(win(ppl_ids, k)).logits.float(), -1),
+                       F.softmax(teacher(win(ppl_ids, k)).logits.float(), -1),
+                       reduction="sum").item() for k in range(n))
+    return tot / (n * L)
+
 fp16 = perplexity(teacher, ppl_ids, L, L, DEV)
 ptq = perplexity(student, ppl_ids, L, L, DEV)   # internal only: best-of baseline, never printed
+ptq_kl = kl_to_teacher(student)                 # internal only: saved to the JSON record
 print(f"FP16 {fp16:.4f}", flush=True)
 
 if GSM8K and not SKIP_FP16_GSM8K:
@@ -107,28 +168,36 @@ def lr_at(s):
     return 0.5 * (1 + _m.cos(_m.pi * (s - warmup) / max(1, STEPS - warmup)))
 sched = torch.optim.lr_scheduler.LambdaLR(opt, lr_at)
 nwin = tr_ids.size(1) // L
+order = list(range(nwin)) if SEED is None else \
+    torch.randperm(nwin, generator=torch.Generator().manual_seed(int(SEED))).tolist()
 best = ptq
 t0 = time.time()
-student.train()
+train_mode(True)
 for s in range(STEPS):
-    x = win(tr_ids, s % nwin)
+    x = win(tr_ids, order[s % nwin])
     with torch.no_grad():
         t = teacher(x).logits.float().reshape(-1, V)
     out = student(x).logits.float().reshape(-1, V)
     loss = F.kl_div(F.log_softmax(out, -1), F.softmax(t, -1), reduction="batchmean")
     opt.zero_grad(); loss.backward(); opt.step(); sched.step()
     if (s + 1) % 500 == 0:
-        student.eval()
+        train_mode(False)
         p = perplexity(student, ppl_ids, L, L, DEV)
         best = min(best, p)
-        student.train()
+        train_mode(True)
         print(f"step {s+1} kl {loss.item():.4f} deploy-PPL {p:.4f} best {best:.4f} "
               f"[{(time.time()-t0)/60:.1f}min]", flush=True)
 
-student.eval()
+train_mode(False)
 final = perplexity(student, ppl_ids, L, L, DEV)
+final_kl = kl_to_teacher(student)
 print(f"\n*** ModelOpt-NATIVE QAT: deployed PPL = {final:.4f}  (best {best:.4f}) | "
-      f"FP16 {fp16:.4f} ***", flush=True)
+      f"FP16 {fp16:.4f} | KL to FP16 {final_kl:.4f} nats/token ***", flush=True)
+import json
+with open(f"/workspace/NVFP4_Research/results/qad_{_MODEL_TAG}{'_kv4' if KV4 else ''}.json", "w") as f:
+    json.dump({"model": MODEL, "act_train": ACT_TRAIN, "seed": SEED, "kv4": KV4, "steps": STEPS,
+               "lr": LR, "fp16_ppl": fp16, "ptq_ppl": ptq, "ptq_kl": ptq_kl,
+               "qad_ppl": final, "qad_best_ppl": best, "qad_kl": final_kl}, f, indent=2)
 print("train==deploy: these numbers ARE the deployed model's (no sim-to-real gap).", flush=True)
 
 if GSM8K:
